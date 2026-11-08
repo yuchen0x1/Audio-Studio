@@ -173,7 +173,12 @@ jobs:
             | Web | `AudioStudio-*-web.zip` | 静态站点，解压后由任意静态服务器托管（含 FFmpeg.wasm，约 32MB） |
 
             > 桌面版与 Android 版调用系统 FFmpeg；Web 版内置 FFmpeg.wasm，无需额外依赖。
-          files: dist/*
+          # artifact 下载后保留了 msi/ 、nsis/ 子目录，必须显式列出
+          files: |
+            dist/*.zip
+            dist/*.apk
+            dist/msi/*.msi
+            dist/nsis/*.exe
 
       - name: 输出发布地址
         run: echo "已发布 https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"
