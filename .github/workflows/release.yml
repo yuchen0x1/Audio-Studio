@@ -1,0 +1,169 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的标签（需已存在，例如 v0.1.0）'
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '22'
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RUST_BACKTRACE: '1'
+
+jobs:
+  # ---------- Web ----------
+  web:
+    name: 打包 Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r typecheck
+      - run: pnpm test
+      - run: pnpm build:web
+
+      - name: 压缩为 zip
+        run: |
+          cd apps/web/dist
+          zip -qr "../../../AudioStudio-${RELEASE_TAG}-web.zip" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-web
+          if-no-files-found: error
+          path: AudioStudio-*-web.zip
+
+  # ---------- Windows 桌面 ----------
+  desktop:
+    name: 打包桌面版
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 确保 FFmpeg 可用
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            choco install ffmpeg -y --no-progress
+            $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
+          }
+          ffmpeg -version | Select-Object -First 1
+
+      - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
+      - run: pnpm build:desktop-ui
+      - run: pnpm --filter @audio-studio/desktop build
+
+      - name: 上传安装包
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-desktop
+          if-no-files-found: error
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+
+  # ---------- Android ----------
+  android:
+    name: 打包 Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+
+      - name: 安装 SDK 组件
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "build-tools;36.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: 单元测试
+        working-directory: apps/android
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      # 未配置发布签名，先提供 debug 签名包（可直接安装）
+      - name: 构建 APK
+        working-directory: apps/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: 重命名
+        run: |
+          cd apps/android/app/build/outputs/apk/debug
+          cp app-debug.apk "$GITHUB_WORKSPACE/AudioStudio-${RELEASE_TAG}-debug.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-android
+          if-no-files-found: error
+          path: AudioStudio-*-debug.apk
+
+  # ---------- 发布 ----------
+  publish:
+    name: 创建 Release
+    needs: [web, desktop, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 列出待发布文件
+        run: ls -lh dist
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Audio Studio ${{ env.RELEASE_TAG }}
+          draft: false
+          prerelease: false
+          body: |
+            ## 下载
+
+            | 平台 | 文件 | 说明 |
+            |---|---|---|
+            | Windows | `*_x64-setup.exe` / `*.msi` | 安装包，需要系统已安装 FFmpeg（或在应用目录放置 `ffmpeg.exe`） |
+            | Android | `AudioStudio-*-debug.apk` | debug 签名，可直接安装；`minSdk 29` |
+            | Web | `AudioStudio-*-web.zip` | 静态站点，解压后由任意静态服务器托管（含 FFmpeg.wasm，约 32MB） |
+
+            > 桌面版与 Android 版调用系统 FFmpeg；Web 版内置 FFmpeg.wasm，无需额外依赖。
+          files: dist/*
+
+      - name: 输出发布地址
+        run: echo "已发布 https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"

@@ -1,5 +1,8 @@
 # Audio Studio
 
+[![CI](https://github.com/yuchen0x1/Audio-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/yuchen0x1/Audio-Studio/actions/workflows/ci.yml)
+[![Release](https://github.com/yuchen0x1/Audio-Studio/actions/workflows/release.yml/badge.svg)](https://github.com/yuchen0x1/Audio-Studio/actions/workflows/release.yml)
+
 多平台专业音频转换工具，一套共享核心逻辑，覆盖 **Web / Windows 桌面 / Android** 三端。
 
 支持 13 种音频格式互转、批量处理、无损剪辑、合并、元数据与封面编辑，以及频谱/响度分析。Web 端基于 FFmpeg.wasm，桌面与 Android 端调用本地原生 FFmpeg。
@@ -118,3 +121,30 @@ cd apps/android && ./gradlew testDebugUnitTest
 ## 许可证
 
 [MIT](./LICENSE)
+
+---
+
+## 持续集成与发布
+
+推送到 `main` 或提交 PR 时，CI 会并行跑三端：
+
+| Job | 内容 |
+|---|---|
+| 类型检查与测试 | `tsc --noEmit`、shared 88 + web 21 单测、`vite build` |
+| Windows 桌面 | `cargo test`、`tauri build`，产出 MSI 与 NSIS 安装包 |
+| Android | `testDebugUnitTest`、`assembleDebug`，产出 APK |
+
+发布新版本只需打标签：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+`Release` 工作流会自动构建三端产物并创建 GitHub Release：
+
+- `AudioStudio-v0.1.0-web.zip` —— 静态站点（含 FFmpeg.wasm）
+- `Audio Studio_0.1.0_x64-setup.exe` / `.msi` —— Windows 安装包
+- `AudioStudio-v0.1.0-debug.apk` —— debug 签名，可直接安装
+
+> Android 尚未配置发布签名，Release 中提供的是 debug 签名 APK。
