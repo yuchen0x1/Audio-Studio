@@ -64,7 +64,7 @@ Web 前端同时作为桌面版 UI（`vite build --mode desktop`），三端共�
 
 ```bash
 pnpm install          # 会自动把 FFmpeg.wasm 内核复制到 apps/web/public/ffmpeg
-pnpm dev              # 启动 Web 开发服务器（默认 5173，可用 --port 指定）
+pnpm dev              # 启动 Web 开发服务器（http://localhost:5180）
 ```
 
 > `apps/web/public/ffmpeg/` 是 `postinstall` 生成的产物（约 32 MB），不入版本库。
