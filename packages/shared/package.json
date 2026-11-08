@@ -1,0 +1,17 @@
+{
+  "name": "@audio-studio/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Audio Studio shared core: format registry, param model, task state machine, engine contract",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run --no-file-parallelism",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

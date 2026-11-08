@@ -1,0 +1,26 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+target/
+apps/desktop/src-tauri/gen/
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
+apps/android/local.properties
+*.log
+.vite/
+.vitest-tmp/
+release/
+
+# 由 scripts/copy-ffmpeg-core.mjs 在 postinstall 自动生成（约 32MB，不入库）
+apps/web/public/ffmpeg/
+
+# 本地工具与会话数据
+.workbuddy/
+
+# 环境变量与证书
+.env
+.env.*
+*.jks
+*.keystore

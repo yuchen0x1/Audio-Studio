@@ -1,0 +1,154 @@
+/* ============================================================
+   Audio Studio 设计系统 —— 世界级专业音频工具 × 暗黑科技风
+   深色为默认主题，浅色主题通过 [data-theme="light"] 覆盖
+   ============================================================ */
+
+:root {
+  /* ---- 圆角体系 ---- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+
+  /* ---- 间距体系（4px 基准） ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* ---- 字体 ---- */
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "SF Mono", Consolas, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+  --fs-3xl: 34px;
+  --lh-tight: 1.25;
+  --lh-normal: 1.6;
+
+  /* ---- 强调色（两主题共用的品牌色相） ---- */
+  --accent-h: 217;
+  --accent-s: 95%;
+  --accent-2-h: 255;
+
+  /* ---- 动效 ---- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur-normal: 200ms;
+  --dur-slow: 360ms;
+
+  /* ---- 层级 ---- */
+  --z-sticky: 10;
+  --z-dropdown: 40;
+  --z-modal: 60;
+  --z-toast: 80;
+
+  /* ---- 布局 ---- */
+  --sidebar-w: 232px;
+  --topbar-h: 56px;
+  --player-h: 64px;
+  --statusbar-h: 30px;
+}
+
+/* ============ 深色主题（默认） ============ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0b0d12;              /* 主背景：深色石墨黑 */
+  --bg-1: #0f1219;            /* 一级面板 */
+  --bg-2: #141824;            /* 二级面板 / 卡片 */
+  --bg-3: #1a1f30;            /* 三级：hover 面 */
+  --bg-4: #212739;            /* 活跃面 */
+
+  --border: #1f2430;          /* 细腻边框 */
+  --border-strong: #2b3247;
+  --border-focus: #4f8cff;
+
+  --fg: #e8ecf5;              /* 主文字 */
+  --fg-2: #a3adc2;            /* 次级文字 */
+  --fg-3: #6b7490;            /* 弱文字 */
+  --fg-inverse: #0b0d12;
+
+  --accent: hsl(var(--accent-h), var(--accent-s), 62%);       /* 电光蓝 */
+  --accent-strong: hsl(var(--accent-h), var(--accent-s), 55%);
+  --accent-soft: hsla(var(--accent-h), var(--accent-s), 62%, 0.14);
+  --accent-soft-2: hsla(var(--accent-h), var(--accent-s), 62%, 0.24);
+  --accent-2: hsl(var(--accent-2-h), 85%, 70%);               /* 蓝紫 */
+  --accent-grad: linear-gradient(135deg, hsl(var(--accent-h), 90%, 58%), hsl(var(--accent-2-h), 85%, 66%));
+
+  --success: #3ddc97;
+  --success-soft: rgba(61, 220, 151, 0.14);
+  --warning: #ffa940;
+  --warning-soft: rgba(255, 169, 64, 0.14);
+  --danger: #ff5c5c;
+  --danger-soft: rgba(255, 92, 92, 0.14);
+
+  --wave: #38415c;
+  --wave-active: url(#wave-grad);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --glow-accent: 0 0 0 1px hsla(var(--accent-h), var(--accent-s), 62%, 0.35), 0 0 18px hsla(var(--accent-h), var(--accent-s), 62%, 0.18);
+
+  --scrollbar: #262c3d;
+  --scrollbar-hover: #333b52;
+  --overlay: rgba(4, 6, 10, 0.72);
+}
+
+/* ============ 浅色主题 ============ */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f4f6fa;
+  --bg-1: #ffffff;
+  --bg-2: #ffffff;
+  --bg-3: #eef1f7;
+  --bg-4: #e3e8f2;
+
+  --border: #e2e7f0;
+  --border-strong: #cdd5e4;
+  --border-focus: hsl(var(--accent-h), var(--accent-s), 48%);
+
+  --fg: #141a28;
+  --fg-2: #4d5670;
+  --fg-3: #858ea8;
+  --fg-inverse: #ffffff;
+
+  --accent: hsl(var(--accent-h), var(--accent-s), 46%);
+  --accent-strong: hsl(var(--accent-h), var(--accent-s), 40%);
+  --accent-soft: hsla(var(--accent-h), var(--accent-s), 46%, 0.10);
+  --accent-soft-2: hsla(var(--accent-h), var(--accent-s), 46%, 0.18);
+  --accent-2: hsl(var(--accent-2-h), 75%, 52%);
+  --accent-grad: linear-gradient(135deg, hsl(var(--accent-h), 90%, 48%), hsl(var(--accent-2-h), 80%, 56%));
+
+  --success: #16a06a;
+  --success-soft: rgba(22, 160, 106, 0.12);
+  --warning: #d97706;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.10);
+
+  --wave: #c9d2e4;
+
+  --shadow-sm: 0 1px 2px rgba(20, 26, 40, 0.06);
+  --shadow-md: 0 4px 16px rgba(20, 26, 40, 0.10);
+  --shadow-lg: 0 16px 48px rgba(20, 26, 40, 0.16);
+  --glow-accent: 0 0 0 1px hsla(var(--accent-h), var(--accent-s), 46%, 0.30);
+
+  --scrollbar: #c9d1e0;
+  --scrollbar-hover: #aab6cc;
+  --overlay: rgba(244, 246, 250, 0.72);
+}

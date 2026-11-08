@@ -1,0 +1,20 @@
+{
+  "name": "Audio Studio — 专业本地音频转换",
+  "short_name": "Audio Studio",
+  "description": "MP3/WAV/FLAC/AAC/OGG/OPUS 等 13 种格式互转、剪辑、合并与元数据编辑。所有处理均在本地完成，音频不会上传。",
+  "id": "audio-studio",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "lang": "zh-CN",
+  "categories": ["music", "utilities"],
+  "icons": [
+    { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "./icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

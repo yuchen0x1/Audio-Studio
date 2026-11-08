@@ -1,0 +1,12 @@
+{
+  "identifier": "default",
+  "description": "主窗口默认能力：核心 IPC/事件 + 系统通知 + 文件对话框 + shell spawn（前端仅通过自定义 commands 访问，fs 插件权限不开放）",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "notification:default",
+    "dialog:default",
+    "shell:allow-spawn"
+  ]
+}
