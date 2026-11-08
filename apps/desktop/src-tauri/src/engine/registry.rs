@@ -86,20 +86,43 @@ pub fn parse_muxers(output: &str) -> Vec<String> {
     names
 }
 
-/// 解析 `ffmpeg -filters`，与 TS `parseFilters` 同一正则：
-/// ` T.C afade             A->A       Fade in/out input audio.`
+/// 解析 `ffmpeg -filters`。
+///
+/// 不依赖固定列宽：不同 ffmpeg 版本的表头标志列宽度会变（6.x 为 3 列，
+/// 新版本可能扩展），说明文字也会变，因此按「标志列 + 名称 + 输入输出箭头」
+/// 三段校验，而不是写死 `[.A-Z]{3}`。
 pub fn parse_filters(output: &str) -> Vec<String> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| {
-        Regex::new(r"^\s*[.A-Z]{3}\s+([A-Za-z0-9_,]+)\s+[AVS]+[-0-9]*[>]").unwrap()
-    });
     let mut names: Vec<String> = Vec::new();
     for line in output.split(['\r', '\n']) {
-        if let Some(c) = re.captures(line) {
-            let name = c[1].to_string();
-            if !names.contains(&name) {
-                names.push(name);
-            }
+        let mut parts = line.split_whitespace();
+        let (Some(flags), Some(name), Some(io)) = (parts.next(), parts.next(), parts.next()) else {
+            continue;
+        };
+        // 标志列：由 . T S C 等组成，2~5 个字符
+        if !(2..=5).contains(&flags.len())
+            || !flags
+                .chars()
+                .all(|c| matches!(c, '.' | 'T' | 'S' | 'C' | 'A' | 'V' | 'N' | '|'))
+        {
+            continue;
+        }
+        // 输入输出列：A->A / V->A / |->A / N->N
+        if !io.contains("->")
+            || !io
+                .chars()
+                .all(|c| c.is_ascii_uppercase() || matches!(c, '-' | '>' | '|' | '*') || c.is_ascii_digit())
+        {
+            continue;
+        }
+        // 名称列：字母数字、下划线、逗号
+        if !name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ',')
+        {
+            continue;
+        }
+        if !names.iter().any(|n| n == name) {
+            names.push(name.to_string());
         }
     }
     names
@@ -204,11 +227,18 @@ Filters:
  ..C afade              V->A       Apply fade-in/out effect
  ... volume            A->A       Change input volume
  T.. aformat            A->A       Convert the input audio to one of the specified formats
+ TSC afreqshift         A->A       Apply frequency shifting
+ N.. anoisesrc          |->A       Generate a noise audio signal
  A->A not-a-filter-line
+ A = Audio input/output
 ";
         let f = parse_filters(out);
         assert!(f.contains(&"afade".to_string()), "{f:?}");
         assert!(f.contains(&"volume".to_string()), "{f:?}");
+        // 标志列变宽（4 列）时仍能解析
+        assert!(f.contains(&"afreqshift".to_string()), "{f:?}");
+        // 源/汇过滤器（|->A）也要纳入
+        assert!(f.contains(&"anoisesrc".to_string()), "{f:?}");
         assert!(f.contains(&"aformat".to_string()), "{f:?}");
         assert!(!f.iter().any(|n| n.contains("not-a-filter")));
     }

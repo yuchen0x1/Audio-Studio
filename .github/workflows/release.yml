@@ -28,9 +28,9 @@ jobs:
     name: 打包 Web
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -45,7 +45,7 @@ jobs:
           cd apps/web/dist
           zip -qr "../../../AudioStudio-${RELEASE_TAG}-web.zip" .
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: release-web
           if-no-files-found: error
@@ -56,9 +56,9 @@ jobs:
     name: 打包桌面版
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -83,7 +83,7 @@ jobs:
       - run: pnpm --filter @audio-studio/desktop build
 
       - name: 上传安装包
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-desktop
           if-no-files-found: error
@@ -96,17 +96,27 @@ jobs:
     name: 打包 Android
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
-      - uses: android-actions/setup-android@v3
 
+      # 直接用 runner 预装的 SDK：android-actions/setup-android 在
+      # cmdline-tools 版本校验 + 许可证步骤上会以 exit 1 失败
       - name: 安装 SDK 组件
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "build-tools;36.0.0"
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort | tail -1)"
+          fi
+          echo "使用 sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" "build-tools;36.0.0"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
 
       - uses: gradle/actions/setup-gradle@v4
 
@@ -124,7 +134,7 @@ jobs:
           cd apps/android/app/build/outputs/apk/debug
           cp app-debug.apk "$GITHUB_WORKSPACE/AudioStudio-${RELEASE_TAG}-debug.apk"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: release-android
           if-no-files-found: error
@@ -136,9 +146,9 @@ jobs:
     needs: [web, desktop, android]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: dist
           merge-multiple: true

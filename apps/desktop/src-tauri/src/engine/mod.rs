@@ -1405,8 +1405,12 @@ Input #0, ogg, from 'cover.ogg':\n\
         assert_eq!(result.codec, "pcm_s16le");
         assert_eq!(result.sample_rate, Some(44100));
         assert_eq!(result.channels, Some(1));
-        // 与 parseProbe.ts 一致：数字声道描述（"1 channels"）只填 channels，不填 channelLayout
-        assert!(result.channel_layout.is_none());
+        // 声道描述随 ffmpeg 版本变化：6.x 输出 "1 channels"（不填 channelLayout），
+        // 9.x 输出 "mono"（填 "mono"）。两者都正确，这里只校验取值合法。
+        match result.channel_layout.as_deref() {
+            None | Some("mono") => {}
+            other => panic!("声道布局取值异常：{other:?}"),
+        }
         assert!(matches!(result.bit_depth, Some(BitDepth::Int(16))));
         assert_eq!(result.file_size_bytes, std::fs::metadata(&wav).unwrap().len());
         let dur = result.duration_ms.unwrap_or(0);
@@ -1428,7 +1432,12 @@ Input #0, ogg, from 'cover.ogg':\n\
         assert!(!caps.engine.version.is_empty(), "版本必须是真实探测结果");
         assert!(caps.encoders.contains(&"libmp3lame".to_string()), "本机 essentials 构建应带 libmp3lame");
         assert!(caps.muxers.contains(&"mp3".to_string()));
-        assert!(caps.filters.contains(&"afade".to_string()));
+        assert!(
+            caps.filters.contains(&"afade".to_string()),
+            "未解析到 afade，共 {} 个过滤器，前 10 个：{:?}",
+            caps.filters.len(),
+            &caps.filters[..caps.filters.len().min(10)]
+        );
         let mp3 = caps.formats.iter().find(|f| f.id == "mp3").unwrap();
         assert!(mp3.can_encode);
         assert_eq!(mp3.encoder.as_deref(), Some("libmp3lame"));

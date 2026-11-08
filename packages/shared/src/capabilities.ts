@@ -31,13 +31,20 @@ export function parseMuxers(output: string): string[] {
 
 /** 解析 `ffmpeg -filters` 输出 */
 export function parseFilters(output: string): string[] {
-  const names: string[] = [];
+  const names = new Set<string>();
   for (const line of output.split(/\r?\n/)) {
+    // 不依赖固定列宽：不同 ffmpeg 版本的表头标志列宽度不同
     //  ..C afade            V->A       Apply fade-in/out effect
-    const m = /^\s*[.A-Z]{3}\s+([A-Za-z0-9_,]+)\s+[AVS]+[-0-9]*[>]/.exec(line);
-    if (m) names.push(m[1]);
+    //  TSC afreqshift       A->A       Apply frequency shifting
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 3) continue;
+    const [flags, name, io] = parts;
+    if (!/^[.TSCAVN|]{2,5}$/.test(flags)) continue; // 标志列
+    if (!/^[A-Z|*]+->[A-Z|*]+$/.test(io)) continue; // 输入输出列
+    if (!/^[A-Za-z0-9_,]+$/.test(name)) continue; // 名称列
+    names.add(name);
   }
-  return [...new Set(names)];
+  return [...names];
 }
 
 /**
