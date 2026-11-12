@@ -11,7 +11,12 @@ import { TaskRow } from '../components/TaskRow';
 import { toast } from '../stores/toast';
 import { setEngineConcurrency } from '../engine';
 import {
-  IconPlay, IconPause, IconClose, IconRefresh, IconTrash, IconBatch,
+  IconPlay,
+  IconPause,
+  IconClose,
+  IconRefresh,
+  IconTrash,
+  IconBatch,
 } from '../components/Icons';
 
 export function BatchPage() {
@@ -31,26 +36,36 @@ export function BatchPage() {
   const [batchFormat, setBatchFormat] = useState<FormatId>(files[0]?.params.format ?? 'mp3');
 
   const queue = useMemo(
-    () => tasks.filter((t) => ['queued', 'preparing', 'running', 'paused', 'failed', 'cancelled'].includes(t.status) || t.status === 'completed'),
+    () =>
+      tasks.filter(
+        (t) =>
+          ['queued', 'preparing', 'running', 'paused', 'failed', 'cancelled'].includes(t.status) ||
+          t.status === 'completed',
+      ),
     [tasks],
   );
-  const counts = useMemo(() => ({
-    queued: tasks.filter((t) => t.status === 'queued').length,
-    running: tasks.filter((t) => t.status === 'running' || t.status === 'preparing').length,
-    paused: tasks.filter((t) => t.status === 'paused').length,
-    done: tasks.filter((t) => t.status === 'completed').length,
-    failed: tasks.filter((t) => t.status === 'failed').length,
-  }), [tasks]);
+  const counts = useMemo(
+    () => ({
+      queued: tasks.filter((t) => t.status === 'queued').length,
+      running: tasks.filter((t) => t.status === 'running' || t.status === 'preparing').length,
+      paused: tasks.filter((t) => t.status === 'paused').length,
+      done: tasks.filter((t) => t.status === 'completed').length,
+      failed: tasks.filter((t) => t.status === 'failed').length,
+    }),
+    [tasks],
+  );
 
   const pauseAll = () => {
     for (const t of tasks) {
-      if (['queued', 'running', 'preparing'].includes(t.status)) useSession.getState().pauseTask(t.id);
+      if (['queued', 'running', 'preparing'].includes(t.status))
+        useSession.getState().pauseTask(t.id);
     }
   };
 
   const cancelAll = () => {
     for (const t of tasks) {
-      if (['queued', 'running', 'preparing', 'paused'].includes(t.status)) useSession.getState().cancelTask(t.id);
+      if (['queued', 'running', 'preparing', 'paused'].includes(t.status))
+        useSession.getState().cancelTask(t.id);
     }
   };
 
@@ -66,7 +81,10 @@ export function BatchPage() {
     setEngineConcurrency(v);
   };
 
-  const pending = files.filter((f) => !tasks.some((t) => t.fileId === f.source.id && !['failed', 'cancelled'].includes(t.status)));
+  const pending = files.filter(
+    (f) =>
+      !tasks.some((t) => t.fileId === f.source.id && !['failed', 'cancelled'].includes(t.status)),
+  );
 
   const queueAll = () => {
     // 为每个尚未入队的文件创建任务并武装
@@ -83,19 +101,35 @@ export function BatchPage() {
       <div className="page-header">
         <div>
           <h1>{zh ? '批量转换' : 'Batch convert'}</h1>
-          <div className="page-desc">{zh ? '多文件队列执行，进度与状态均为引擎真实上报' : 'Queue multiple files with real engine-reported progress'}</div>
+          <div className="page-desc">
+            {zh
+              ? '多文件队列执行，进度与状态均为引擎真实上报'
+              : 'Queue multiple files with real engine-reported progress'}
+          </div>
         </div>
         <div className="row" style={{ gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
           <button className="btn btn-primary btn-sm" onClick={queueAll} disabled={!pending.length}>
             <IconPlay size={13} /> {zh ? '全部入队' : 'Queue all'}
           </button>
-          <button className="btn btn-sm" onClick={startAll} disabled={!counts.queued && !counts.paused}>
+          <button
+            className="btn btn-sm"
+            onClick={startAll}
+            disabled={!counts.queued && !counts.paused}
+          >
             <IconPlay size={13} /> {zh ? '开始' : 'Start'}
           </button>
-          <button className="btn btn-sm" onClick={pauseAll} disabled={!counts.running && !counts.queued}>
+          <button
+            className="btn btn-sm"
+            onClick={pauseAll}
+            disabled={!counts.running && !counts.queued}
+          >
             <IconPause size={13} /> {zh ? '暂停' : 'Pause'}
           </button>
-          <button className="btn btn-sm btn-danger" onClick={cancelAll} disabled={!counts.queued && !counts.running && !counts.paused}>
+          <button
+            className="btn btn-sm btn-danger"
+            onClick={cancelAll}
+            disabled={!counts.queued && !counts.running && !counts.paused}
+          >
             <IconClose size={13} /> {zh ? '取消全部' : 'Cancel all'}
           </button>
           <button className="btn btn-sm" onClick={retryFailed} disabled={!counts.failed}>
@@ -109,8 +143,14 @@ export function BatchPage() {
 
       {/* 批量参数 */}
       <section className="card">
-        <div className="card-title"><IconBatch size={16} /> {zh ? '批量参数（应用到全部文件）' : 'Batch parameters (apply to all)'}</div>
-        <div className="row" style={{ gap: 'var(--sp-4)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div className="card-title">
+          <IconBatch size={16} />{' '}
+          {zh ? '批量参数（应用到全部文件）' : 'Batch parameters (apply to all)'}
+        </div>
+        <div
+          className="row"
+          style={{ gap: 'var(--sp-4)', alignItems: 'flex-end', flexWrap: 'wrap' }}
+        >
           <div style={{ width: 260 }}>
             <FormatSelect value={batchFormat} onChange={setBatchFormat} id="batch-fmt" />
           </div>
@@ -128,8 +168,12 @@ export function BatchPage() {
         <hr className="divider" />
         <div className="grid-2">
           <div className="field">
-            <span className="field-label">{zh ? '同时应用的参数（可选）' : 'Extra params to apply (optional)'}</span>
-            <span className="field-hint">{zh ? '仅覆盖你修改过的项' : 'Only overrides you change here'}</span>
+            <span className="field-label">
+              {zh ? '同时应用的参数（可选）' : 'Extra params to apply (optional)'}
+            </span>
+            <span className="field-hint">
+              {zh ? '仅覆盖你修改过的项' : 'Only overrides you change here'}
+            </span>
           </div>
         </div>
         <ParamPanel
@@ -147,7 +191,7 @@ export function BatchPage() {
           showNaming={false}
         />
         <div className="mt-3 row" style={{ gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
-          <label className="field-label" style={{ margin: 0 }}>
+          <label className="field-label" htmlFor="batch-concurrency" style={{ margin: 0 }}>
             {zh ? '并行任务数' : 'Parallel tasks'}
             <span className="xs muted">{zh ? '（Web 建议 1-2）' : '(Web: 1-2 recommended)'}</span>
           </label>
@@ -155,6 +199,7 @@ export function BatchPage() {
             className="range"
             style={{ width: 140 }}
             type="range"
+            id="batch-concurrency"
             min={1}
             max={4}
             value={concurrency}
@@ -173,25 +218,57 @@ export function BatchPage() {
       />
 
       {/* 摘要 */}
-      <section className="grid-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
-        <div className="stat-card"><span className="stat-value">{counts.queued}</span><span className="stat-label">{zh ? '等待' : 'Queued'}</span></div>
-        <div className="stat-card"><span className="stat-value" style={{ color: 'var(--accent)' }}>{counts.running}</span><span className="stat-label">{zh ? '执行中' : 'Running'}</span></div>
-        <div className="stat-card"><span className="stat-value" style={{ color: 'var(--success)' }}>{counts.done}</span><span className="stat-label">{zh ? '完成' : 'Done'}</span></div>
-        <div className="stat-card"><span className="stat-value" style={{ color: counts.failed ? 'var(--danger)' : undefined }}>{counts.failed}</span><span className="stat-label">{zh ? '失败' : 'Failed'}</span></div>
+      <section
+        className="grid-3"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}
+      >
+        <div className="stat-card">
+          <span className="stat-value">{counts.queued}</span>
+          <span className="stat-label">{zh ? '等待' : 'Queued'}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-value" style={{ color: 'var(--accent)' }}>
+            {counts.running}
+          </span>
+          <span className="stat-label">{zh ? '执行中' : 'Running'}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-value" style={{ color: 'var(--success)' }}>
+            {counts.done}
+          </span>
+          <span className="stat-label">{zh ? '完成' : 'Done'}</span>
+        </div>
+        <div className="stat-card">
+          <span
+            className="stat-value"
+            style={{ color: counts.failed ? 'var(--danger)' : undefined }}
+          >
+            {counts.failed}
+          </span>
+          <span className="stat-label">{zh ? '失败' : 'Failed'}</span>
+        </div>
       </section>
 
       {/* 队列 */}
       <section>
-        <h2 className="mb-3" style={{ fontSize: 'var(--fs-lg)' }}>{zh ? '任务队列' : 'Task queue'}</h2>
+        <h2 className="mb-3" style={{ fontSize: 'var(--fs-lg)' }}>
+          {zh ? '任务队列' : 'Task queue'}
+        </h2>
         {queue.length === 0 ? (
           <div className="empty">
-            <div className="empty-icon"><IconBatch size={26} /></div>
+            <div className="empty-icon">
+              <IconBatch size={26} />
+            </div>
             <div className="empty-title">{zh ? '队列为空' : 'Queue is empty'}</div>
-            <div className="empty-desc">{zh ? '添加文件后点击"全部入队"' : 'Add files, then hit "Queue all"'}</div>
+            <div className="empty-desc">
+              {zh ? '添加文件后点击"全部入队"' : 'Add files, then hit "Queue all"'}
+            </div>
           </div>
         ) : (
           <div className="col" style={{ gap: 'var(--sp-2)' }}>
-            {queue.map((t) => <TaskRow key={t.id} task={t} />)}
+            {queue.map((t) => (
+              <TaskRow key={t.id} task={t} />
+            ))}
           </div>
         )}
       </section>
@@ -201,7 +278,10 @@ export function BatchPage() {
         <div className="row" style={{ justifyContent: 'flex-end' }}>
           <button
             className="btn btn-sm btn-danger"
-            onClick={() => { clearFiles(); toast.info(zh ? '已清空文件与任务' : 'Files and tasks cleared'); }}
+            onClick={() => {
+              clearFiles();
+              toast.info(zh ? '已清空文件与任务' : 'Files and tasks cleared');
+            }}
           >
             <IconTrash size={13} /> {zh ? '清空全部文件' : 'Remove all files'}
           </button>

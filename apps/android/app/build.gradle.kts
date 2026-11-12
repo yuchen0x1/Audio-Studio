@@ -3,6 +3,17 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val releaseVersion = providers.environmentVariable("RELEASE_VERSION").orElse("0.1.0").get()
+val releaseVersionCode = Regex("^(\\d+)\\.(\\d+)\\.(\\d+)")
+    .matchEntire(releaseVersion)
+    ?.let { match ->
+        val major = match.groupValues[1].toLong()
+        val minor = match.groupValues[2].toLong()
+        val patch = match.groupValues[3].toLong()
+        (major * 1_000_000L + minor * 1_000L + patch).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    }
+    ?: 1
+
 android {
     namespace = "com.audiostudio.app"
     compileSdk = 35
@@ -11,8 +22,11 @@ android {
         applicationId = "com.audiostudio.app"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = releaseVersionCode
+        // Release workflow injects RELEASE_VERSION so Android's runtime version,
+        // GitHub tag and Web/Tauri versions remain aligned. Local builds keep the
+        // repository default without requiring an environment variable.
+        versionName = releaseVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

@@ -42,8 +42,12 @@ export const useToast = create<ToastState>((set) => ({
 }));
 
 export const toast = {
-  info: (title: string, message?: string) => useToast.getState().push({ kind: 'info', title, message }),
-  success: (title: string, message?: string) => useToast.getState().push({ kind: 'success', title, message }),
-  warning: (title: string, message?: string) => useToast.getState().push({ kind: 'warning', title, message }),
-  error: (title: string, message?: string) => useToast.getState().push({ kind: 'error', title, message }),
+  info: (title: string, message?: string) =>
+    useToast.getState().push({ kind: 'info', title, message }),
+  success: (title: string, message?: string) =>
+    useToast.getState().push({ kind: 'success', title, message }),
+  warning: (title: string, message?: string) =>
+    useToast.getState().push({ kind: 'warning', title, message }),
+  error: (title: string, message?: string) =>
+    useToast.getState().push({ kind: 'error', title, message }),
 };

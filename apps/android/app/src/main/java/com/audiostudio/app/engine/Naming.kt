@@ -1,5 +1,7 @@
 package com.audiostudio.app.engine
 
+import com.audiostudio.app.R
+
 /** 输出文件名模板系统（与 packages/shared/src/naming.ts 一致的 Kotlin 移植） */
 
 data class NamingContext(
@@ -17,16 +19,16 @@ data class NamingContext(
     val nowMs: Long = System.currentTimeMillis(),
 )
 
-val NAMING_TOKENS: List<Pair<String, String>> = listOf(
-    "{name}" to "源文件名（不含扩展名）",
-    "{format}" to "目标格式（小写，如 mp3）",
-    "{source_format}" to "源格式",
-    "{date}" to "日期 YYYYMMDD",
-    "{time}" to "时间 HHMMSS",
-    "{index}" to "批量序号",
-    "{artist}" to "艺术家标签",
-    "{title}" to "标题标签",
-    "{album}" to "专辑标签",
+val NAMING_TOKENS: List<Pair<String, Int>> = listOf(
+    "{name}" to R.string.naming_token_name,
+    "{format}" to R.string.naming_token_format,
+    "{source_format}" to R.string.naming_token_source_format,
+    "{date}" to R.string.naming_token_date,
+    "{time}" to R.string.naming_token_time,
+    "{index}" to R.string.naming_token_index,
+    "{artist}" to R.string.naming_token_artist,
+    "{title}" to R.string.naming_token_title,
+    "{album}" to R.string.naming_token_album,
 )
 
 private fun pad(n: Int, len: Int = 2): String = n.toString().padStart(len, '0')

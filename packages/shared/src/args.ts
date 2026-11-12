@@ -6,7 +6,7 @@
  * - 所有来自用户输入的路径/文件名在进入这里之前已通过 validation.ts 清洗。
  * - 过滤器数值全部经过 Number() 归一化，杜绝过滤器语法注入。
  */
-import { BitDepth, FormatDef, FormatId, FORMATS } from './formats';
+import { FormatDef, FormatId, FORMATS } from './formats';
 import { EncodeParams } from './params';
 import { AudioJob, ConvertJob, MergeJob, TrimJob } from './engine';
 import { assertSafeArg } from './validation';
@@ -46,11 +46,14 @@ function num(v: unknown): number {
 }
 
 /** 根据格式 + 位深度选择具体 PCM 编码器 */
-export function selectEncoder(format: FormatId, params: EncodeParams): { encoder: string; explicit: boolean } {
+export function selectEncoder(
+  format: FormatId,
+  params: EncodeParams,
+): { encoder: string; explicit: boolean } {
   const f: FormatDef = FORMATS[format];
   if (params.encoder) return { encoder: params.encoder, explicit: true };
   const byDepth: Partial<Record<FormatId, Record<string, string>>> = {
-    wav: { '16': 'pcm_s16le', '24': 'pcm_s24le', '32': 'pcm_s32le', 'f32': 'pcm_f32le' },
+    wav: { '16': 'pcm_s16le', '24': 'pcm_s24le', '32': 'pcm_s32le', f32: 'pcm_f32le' },
     aiff: { '16': 'pcm_s16be', '24': 'pcm_s24be', '32': 'pcm_s32be' },
   };
   const depthMap = byDepth[format];
@@ -76,17 +79,22 @@ export function buildAudioFilters(params: EncodeParams, ctx: BuildContext): stri
       filters.push(`volume=${clamped.toFixed(2)}dB`);
     } else {
       const m = ctx.measure;
-      if (m?.inputI === undefined || m.inputTP === undefined || m.inputLRA === undefined || m.inputThresh === undefined) {
+      if (
+        m?.inputI === undefined ||
+        m.inputTP === undefined ||
+        m.inputLRA === undefined ||
+        m.inputThresh === undefined
+      ) {
         throw new Error('归一化缺少 LUFS 测量结果');
       }
       const target = num(params.normalize.target);
       filters.push(
         `loudnorm=I=${target.toFixed(1)}:TP=-1.5:LRA=11` +
-        `:measured_I=${num(m.inputI).toFixed(2)}` +
-        `:measured_TP=${num(m.inputTP).toFixed(2)}` +
-        `:measured_LRA=${num(m.inputLRA).toFixed(2)}` +
-        `:measured_thresh=${num(m.inputThresh).toFixed(2)}` +
-        `:linear=true`,
+          `:measured_I=${num(m.inputI).toFixed(2)}` +
+          `:measured_TP=${num(m.inputTP).toFixed(2)}` +
+          `:measured_LRA=${num(m.inputLRA).toFixed(2)}` +
+          `:measured_thresh=${num(m.inputThresh).toFixed(2)}` +
+          `:linear=true`,
       );
     }
   }
@@ -145,7 +153,12 @@ export function buildCodecArgs(params: EncodeParams, f: FormatDef): string[] {
   return args;
 }
 
-function outputTail(params: EncodeParams, f: FormatDef, ctx: BuildContext, filters: string[]): string[] {
+function outputTail(
+  params: EncodeParams,
+  f: FormatDef,
+  ctx: BuildContext,
+  filters: string[],
+): string[] {
   const args: string[] = [];
   if (filters.length) args.push('-af', filters.join(','));
   if (params.sampleRate !== 0) args.push('-ar', String(num(params.sampleRate)));
@@ -169,8 +182,11 @@ export function buildConvertArgs(job: ConvertJob, ctx: BuildContext = {}): strin
   const filters = buildAudioFilters(job.params, ctx);
   return [
     ...ffmpegBase(),
-    '-i', input,
-    '-map', '0:a:0', '-vn',
+    '-i',
+    input,
+    '-map',
+    '0:a:0',
+    '-vn',
     ...outputTail(job.params, f, ctx, filters),
     out,
   ];
@@ -196,10 +212,15 @@ export function buildTrimArgs(job: TrimJob, ctx: BuildContext = {}): string[] {
 
   return [
     ...ffmpegBase(),
-    '-i', input,
-    '-ss', sec(startMs),
-    '-t', sec(durationMs),
-    '-map', '0:a:0', '-vn',
+    '-i',
+    input,
+    '-ss',
+    sec(startMs),
+    '-t',
+    sec(durationMs),
+    '-map',
+    '0:a:0',
+    '-vn',
     ...outputTail(job.params, f, ctx, filters),
     out,
   ];
@@ -234,9 +255,7 @@ export function buildMergeArgs(job: MergeJob, ctx: BuildContext = {}): string[] 
   const parts: string[] = [];
   const labels: string[] = [];
   job.items.forEach((item, i) => {
-    const chain: string[] = [
-      `aformat=sample_rates=${rate}:channel_layouts=${layout}`,
-    ];
+    const chain: string[] = [`aformat=sample_rates=${rate}:channel_layouts=${layout}`];
     const g = num(item.gainDb ?? 0);
     if (g !== 0) chain.push(`volume=${g.toFixed(2)}dB`);
     if (num(item.fadeInMs ?? 0) > 0) {
@@ -292,7 +311,12 @@ export function buildMergeArgs(job: MergeJob, ctx: BuildContext = {}): string[] 
   return args;
 }
 
-function outputTailNoAf(params: EncodeParams, f: FormatDef, ctx: BuildContext, filters: string[]): string[] {
+function outputTailNoAf(
+  params: EncodeParams,
+  f: FormatDef,
+  ctx: BuildContext,
+  filters: string[],
+): string[] {
   void filters;
   const args: string[] = [];
   if (params.sampleRate !== 0) args.push('-ar', String(num(params.sampleRate)));
@@ -308,20 +332,36 @@ function outputTailNoAf(params: EncodeParams, f: FormatDef, ctx: BuildContext, f
  * 归一化测量作业：-af volumedetect（峰值）或 loudnorm print_format=json（LUFS），
  * 输出到 null muxer，仅用于测量。裁剪作业会把测量限定在选区内。
  */
-export function buildMeasureArgs(job: AudioJob, mode: 'peak' | 'lufs', ctx: BuildContext = {}): string[] {
+export function buildMeasureArgs(
+  job: AudioJob,
+  mode: 'peak' | 'lufs',
+  ctx: BuildContext = {},
+): string[] {
   const source = job.kind === 'merge' ? job.items[0].source : job.source;
   const input = source.path ?? source.name;
   assertSafeArg(input, 0, 'path');
-  const filters = mode === 'peak'
-    ? 'volumedetect'
-    : 'loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json';
+  const filters =
+    mode === 'peak' ? 'volumedetect' : 'loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json';
   const seek: string[] = [];
   if (job.kind === 'trim') {
     const dur = Math.max(0, job.endMs - job.startMs);
     seek.push('-ss', sec(job.startMs), '-t', sec(dur));
   }
   void ctx;
-  return [...ffmpegBase(), ...seek, '-i', input, '-map', '0:a:0', '-vn', '-af', filters, '-f', 'null', '-'];
+  return [
+    ...ffmpegBase(),
+    ...seek,
+    '-i',
+    input,
+    '-map',
+    '0:a:0',
+    '-vn',
+    '-af',
+    filters,
+    '-f',
+    'null',
+    '-',
+  ];
 }
 
 /** 解析 volumedetect 输出 */
@@ -333,7 +373,9 @@ export function parseVolumedetect(stderr: string): number | undefined {
 /** 解析 loudnorm JSON（取最后一次测量结果；对不规范输出做字段级容错） */
 export function parseLoudnormJson(stderr: string): MeasureResult | undefined {
   const matches = stderr.match(/\{[^{}]*"input_i"[^{}]*\}/g);
-  const candidates = matches?.length ? [stderr.match(/\{[^{}]*"input_i"[^{}]*\}/g)!.slice(-1)[0]] : [];
+  const candidates = matches?.length
+    ? [stderr.match(/\{[^{}]*"input_i"[^{}]*\}/g)!.slice(-1)[0]]
+    : [];
   for (const raw of candidates) {
     try {
       const obj = JSON.parse(raw) as Record<string, string>;

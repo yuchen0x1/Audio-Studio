@@ -23,12 +23,63 @@ env:
   RUST_BACKTRACE: '1'
 
 jobs:
+  # ---------- 版本 ----------
+  version:
+    name: 解析发布版本
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
+      - name: 校验标签来自 main
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_ref="refs/tags/${RELEASE_TAG}"
+          target_sha="$(git rev-list -n 1 "$target_ref" 2>/dev/null || true)"
+          if [[ -z "$target_sha" ]]; then
+            if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+              target_sha="$GITHUB_SHA"
+            else
+              echo "找不到发布标签 ${RELEASE_TAG}" >&2
+              exit 1
+            fi
+          fi
+          if ! git merge-base --is-ancestor "$target_sha" origin/main; then
+            echo "发布标签必须指向 main 上的提交: $target_sha" >&2
+            exit 1
+          fi
+      - id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "RELEASE_TAG 必须是 v<SemVer>，实际为: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ---------- Web ----------
   web:
     name: 打包 Web
+    needs: version
     runs-on: ubuntu-latest
+    env:
+      AUDIO_STUDIO_VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
@@ -37,6 +88,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
+      - run: pnpm lint
       - run: pnpm test
       - run: pnpm build:web
 
@@ -54,9 +106,14 @@ jobs:
   # ---------- Windows 桌面 ----------
   desktop:
     name: 打包桌面版
+    needs: version
     runs-on: windows-latest
+    env:
+      RELEASE_VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
@@ -80,7 +137,18 @@ jobs:
 
       - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
       - run: pnpm build:desktop-ui
-      - run: pnpm --filter @audio-studio/desktop build
+      - name: 构建带签名的桌面更新包
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            throw '缺少 TAURI_SIGNING_PRIVATE_KEY；拒绝生成未签名桌面更新包'
+          }
+          $configPath = Join-Path $env:RUNNER_TEMP 'tauri-release-version.json'
+          @{ version = $env:RELEASE_VERSION } | ConvertTo-Json | Set-Content -Path $configPath -Encoding utf8
+          pnpm --filter @audio-studio/desktop exec tauri build --config $configPath
 
       - name: 上传安装包
         uses: actions/upload-artifact@v5
@@ -90,13 +158,20 @@ jobs:
           path: |
             apps/desktop/src-tauri/target/release/bundle/msi/*.msi
             apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe.sig
+            apps/desktop/src-tauri/target/release/bundle/msi/*.msi.sig
 
   # ---------- Android ----------
   android:
     name: 打包 Android
+    needs: version
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -143,10 +218,14 @@ jobs:
   # ---------- 发布 ----------
   publish:
     name: 创建 Release
-    needs: [web, desktop, android]
+    needs: [version, web, desktop, android]
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/download-artifact@v5
         with:
@@ -156,13 +235,135 @@ jobs:
       - name: 列出待发布文件
         run: ls -lh dist
 
+      - name: 校验发布资产命名与签名配对
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t installers < <(find dist/nsis dist/msi -maxdepth 1 -type f \( -name '*.exe' -o -name '*.msi' \) | sort)
+          if [[ "${#installers[@]}" -eq 0 ]]; then
+            echo '没有找到 Windows 安装包' >&2
+            exit 1
+          fi
+          for installer in "${installers[@]}"; do
+            test -s "${installer}.sig"
+          done
+
+      - name: 生成 Tauri latest.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find dist/nsis -maxdepth 1 -name '*.exe' | wc -l)" -gt 0
+          test "$(find dist/nsis -maxdepth 1 -name '*.exe.sig' | wc -l)" -gt 0
+          python3 - <<'PY'
+          import json, os, pathlib
+          from datetime import datetime, timezone
+          tag = os.environ['RELEASE_TAG']
+          version = os.environ['RELEASE_VERSION']
+          root = pathlib.Path('dist')
+          release_date = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+          def signed_pair(folder, suffix):
+              files = sorted((root / folder).glob(suffix))
+              if not files:
+                  return None
+              file = files[0]
+              sig = pathlib.Path(str(file) + '.sig')
+              return file, sig
+          platforms = {}
+          for folder, suffix in [('nsis', '*.exe'), ('msi', '*.msi')]:
+              pair = signed_pair(folder, suffix)
+              if pair:
+                  file, sig = pair
+                  if not sig.is_file() or not sig.read_text().strip():
+                      raise SystemExit(f'Missing signature for {file}')
+                  platforms['windows-x86_64'] = {
+                      'url': f'https://github.com/${{ github.repository }}/releases/download/{tag}/{file.name}',
+                      'signature': sig.read_text().strip(),
+                  }
+                  break
+          if not platforms:
+              raise SystemExit('No signed Windows updater artifact found')
+          payload = {
+              'version': version,
+              'notes': f'Audio Studio {tag}',
+              'pub_date': release_date,
+              'platforms': platforms,
+          }
+          (root / 'latest.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\\n')
+          PY
+          cat dist/latest.json
+
+      - name: 生成发布清单和 SHA-256 校验文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path('dist')
+          tag = os.environ['RELEASE_TAG']
+          version = os.environ['RELEASE_VERSION']
+          channel = 'beta' if '-' in version else 'stable'
+          excluded = {'latest.json', 'release-manifest.json', 'SHA256SUMS.txt'}
+          files = sorted(p for p in root.rglob('*') if p.is_file() and p.name not in excluded)
+          if not files:
+              raise SystemExit('No release assets found')
+
+          def digest(path: Path) -> str:
+              h = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          assets = []
+          seen_names = set()
+          for path in files:
+              name = path.name
+              if name in seen_names:
+                  raise SystemExit(f'Duplicate GitHub release asset name: {name}')
+              seen_names.add(name)
+              assets.append({
+                  'name': name,
+                  'path': path.relative_to(root).as_posix(),
+                  'sizeBytes': path.stat().st_size,
+                  'sha256': digest(path),
+                  'url': f'https://github.com/${{ github.repository }}/releases/download/{tag}/{name}',
+              })
+
+          release_date = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+          manifest = {
+              'schemaVersion': 1,
+              'product': 'Audio Studio',
+              'version': version,
+              'tag': tag,
+              'channel': channel,
+              'releaseDate': release_date,
+              'mandatory': False,
+              'assets': assets,
+          }
+          (root / 'release-manifest.json').write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + '\\n'
+          )
+
+          checksum_lines = []
+          for path in sorted(p for p in root.rglob('*') if p.is_file() and p.name != 'SHA256SUMS.txt'):
+              checksum_lines.append(f'{digest(path)}  {path.relative_to(root).as_posix()}')
+          (root / 'SHA256SUMS.txt').write_text('\\n'.join(checksum_lines) + '\\n')
+          PY
+          test -s dist/release-manifest.json
+          test -s dist/SHA256SUMS.txt
+          cat dist/release-manifest.json
+          cat dist/SHA256SUMS.txt
+
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: Audio Studio ${{ env.RELEASE_TAG }}
           draft: false
-          prerelease: false
+          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
           body: |
             ## 下载
 
@@ -179,6 +380,12 @@ jobs:
             dist/*.apk
             dist/msi/*.msi
             dist/nsis/*.exe
+            dist/nsis/*.exe.sig
+            dist/msi/*.msi.sig
+            dist/latest.json
+            dist/release-manifest.json
+            dist/SHA256SUMS.txt
+          fail_on_unmatched_files: true
 
       - name: 输出发布地址
         run: echo "已发布 https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"

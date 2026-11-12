@@ -82,7 +82,8 @@ export function parseProbeOutput(stderr: string): ParsedProbe {
       if (d !== undefined) result.durationMs = d;
       const br = /bitrate:\s*(\d+)\s*kb\/s/.exec(line);
       if (br) result.bitrateKbps = parseInt(br[1], 10);
-      if (/Duration:\s*N\/A/.test(line)) result.warnings.push('文件时长未知（流损坏或为直播流格式）');
+      if (/Duration:\s*N\/A/.test(line))
+        result.warnings.push('文件时长未知（流损坏或为直播流格式）');
       continue;
     }
 
@@ -106,10 +107,11 @@ export function parseProbeOutput(stderr: string): ParsedProbe {
       } else if (!isAudio) {
         const codecM = /:\s*Video:\s*([^,]+)/.exec(line);
         const desc = line.trim();
-        const isCover = /attached picture/i.test(line)
-          || /mjpeg|png|bmp|webp/i.test(line ?? '') && /disposition.*attached/i.test(line);
+        const isCover =
+          /attached picture/i.test(line) ||
+          (/mjpeg|png|bmp|webp/i.test(line ?? '') && /disposition.*attached/i.test(line));
         result.videoStreams.push({
-          codec: codecM ? codecM[1].trim() : 'unknown',
+          codec: codecM ? codecM[1].trim().replace(/\s*\(.*\)$/, '') : 'unknown',
           description: desc,
           isAttachedPicture: /attached picture/i.test(desc) || (isCover && !/Display/i.test(desc)),
         });
@@ -163,7 +165,10 @@ function parseAudioStream(line: string): ParsedProbe['audio'] | undefined {
   // Stream #0:0: Audio: mp3, 44100 Hz, stereo, fltp, 320 kb/s
   // Stream #0:0(eng): Audio: aac (LC), 44100 Hz, stereo, fltp, 128 kb/s
   // Stream #0:0: Audio: pcm_s16le, 44100 Hz, stereo, s16, 1411 kb/s
-  const m = /Audio:\s*([^,]+),\s*(\d+)\s*Hz,\s*([^,]+?)(?:,\s*([^,]+))?(?:,\s*(\d+)\s*kb\/s)?\s*$/.exec(line);
+  const m =
+    /Audio:\s*([^,]+),\s*(\d+)\s*Hz,\s*([^,]+?)(?:,\s*([^,]+))?(?:,\s*(\d+)\s*kb\/s)?\s*$/.exec(
+      line,
+    );
   if (!m) {
     // 宽松回退
     const codecM = /Audio:\s*([^,]+)/.exec(line);
@@ -189,7 +194,12 @@ function parseAudioStream(line: string): ParsedProbe['audio'] | undefined {
     channelLayout = 'stereo';
   } else if (/2\.1|3\.0|4\.0|4\.1|5\.0|5\.1|6\.0|6\.1|7\.1/.test(layoutRaw)) {
     channelLayout = layoutRaw;
-    channels = { '2.1': 3, '3.0': 3, '4.0': 4, '4.1': 5, '5.0': 5, '5.1': 6, '6.0': 6, '6.1': 7, '7.1': 8 }[layoutRaw] ?? undefined;
+    // 布局可能带后缀（如 "5.1(side)"），按数字部分查表
+    const layoutNum = /(\d\.\d)/.exec(layoutRaw)?.[1] ?? layoutRaw;
+    channels =
+      { '2.1': 3, '3.0': 3, '4.0': 4, '4.1': 5, '5.0': 5, '5.1': 6, '6.0': 6, '6.1': 7, '7.1': 8 }[
+        layoutNum
+      ] ?? undefined;
   } else {
     channelLayout = layoutRaw;
   }
@@ -199,6 +209,9 @@ function parseAudioStream(line: string): ParsedProbe['audio'] | undefined {
   const pcmM = /pcm_[su](\d+)(?:le|be)?/.exec(codec);
   if (pcmM) bitDepth = parseInt(pcmM[1], 10);
   if (bitDepth === undefined) bitDepth = bitDepthFromSampleFmt(sampleFormat);
+  // FFmpeg 显式标注的真实位深度（如 "s32 (24 bit)"）优先于容器位宽
+  const bitAnnotation = /\((\d+)\s*bit\)/i.exec(line);
+  if (bitAnnotation) bitDepth = parseInt(bitAnnotation[1], 10);
 
   return {
     codec,

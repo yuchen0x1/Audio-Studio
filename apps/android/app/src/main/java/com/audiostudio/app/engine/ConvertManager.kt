@@ -2,6 +2,7 @@ package com.audiostudio.app.engine
 
 import android.content.Context
 import android.content.Intent
+import com.audiostudio.app.R
 import com.audiostudio.app.data.AppSettings
 import com.audiostudio.app.data.TaskKind
 import com.audiostudio.app.data.TaskRecord
@@ -326,14 +327,14 @@ class ConvertManager(
                         updatedAt = now(),
                         finishedAt = now(),
                         errorCode = EngineErrorCode.E_INVALID_PARAM.name,
-                        errorMessage = paramErrors.first(),
+                        errorMessage = paramErrors.first().resolve(appContext),
                     )
                 }
                 return
             }
 
             val format = Formats.get(params.format) ?: run {
-                fail(taskId, IllegalStateException("未知目标格式"))
+                fail(taskId, IllegalStateException("unknown target format"))
                 return
             }
             if (!engine.canEncode(format.id)) {
@@ -343,7 +344,7 @@ class ConvertManager(
                         updatedAt = now(),
                         finishedAt = now(),
                         errorCode = EngineErrorCode.E_ENCODER_UNAVAILABLE.name,
-                        errorMessage = EngineErrorCode.E_ENCODER_UNAVAILABLE.zhMessage,
+                        errorMessage = appContext.getString(EngineErrorCode.E_ENCODER_UNAVAILABLE.messageRes),
                     )
                 }
                 return
@@ -367,7 +368,7 @@ class ConvertManager(
                         updatedAt = now(),
                         finishedAt = now(),
                         errorCode = EngineErrorCode.E_PATH_UNSAFE.name,
-                        errorMessage = EngineErrorCode.E_PATH_UNSAFE.zhMessage,
+                        errorMessage = appContext.getString(EngineErrorCode.E_PATH_UNSAFE.messageRes),
                     )
                 }
                 return
@@ -422,7 +423,7 @@ class ConvertManager(
                         updatedAt = now(),
                         finishedAt = now(),
                         errorCode = EngineErrorCode.E_INVALID_PARAM.name,
-                        errorMessage = t.message ?: EngineErrorCode.E_INVALID_PARAM.zhMessage,
+                        errorMessage = appContext.getString(EngineErrorCode.E_INVALID_PARAM.messageRes),
                         errorDetail = t.toString(),
                     )
                 }
@@ -464,7 +465,7 @@ class ConvertManager(
                             updatedAt = now(),
                             finishedAt = now(),
                             errorCode = code.name,
-                            errorMessage = code.zhMessage,
+                            errorMessage = appContext.getString(code.messageRes),
                             errorDetail = tailOf(outcome.output, 800),
                         )
                     }
@@ -478,7 +479,7 @@ class ConvertManager(
                                 updatedAt = now(),
                                 finishedAt = now(),
                                 errorCode = EngineErrorCode.E_UNKNOWN.name,
-                                errorMessage = "转换完成但未产生输出文件",
+                                errorMessage = appContext.getString(R.string.error_no_output),
                                 errorDetail = tailOf(outcome.output, 800),
                             )
                         }
@@ -512,7 +513,7 @@ class ConvertManager(
         try {
             val uri = MediaStoreWriter.publish(appContext, outFile, outName, settings.outputMode, settings.outputTreeUri)
             val displayPath = if (settings.outputMode == "tree" && settings.outputTreeUri.isNotEmpty()) {
-                "选定目录/$outName"
+                appContext.getString(R.string.output_path_selected_dir, outName)
             } else {
                 "Download/AudioStudio/$outName"
             }
@@ -538,8 +539,8 @@ class ConvertManager(
                     updatedAt = now(),
                     finishedAt = now(),
                     errorCode = if (code == EngineErrorCode.E_UNKNOWN) EngineErrorCode.E_DISK_FULL.name else code.name,
-                    errorMessage = t.message ?: code.zhMessage,
-                    errorDetail = "输出文件保留在应用缓存: ${outFile.absolutePath}",
+                    errorMessage = t.message ?: appContext.getString(code.messageRes),
+                    errorDetail = appContext.getString(R.string.error_detail_cached, outFile.absolutePath),
                 )
             }
         }
@@ -559,7 +560,7 @@ class ConvertManager(
                     }
                     paths.add(dest.absolutePath)
                 }
-                if (paths.isEmpty()) throw IllegalStateException("合并至少需要一个输入")
+                if (paths.isEmpty()) throw IllegalStateException("merge requires at least one input")
                 return paths
             }
             else -> {
@@ -571,7 +572,7 @@ class ConvertManager(
                 if (uriString == null) {
                     val p = task.sourcePath
                     if (p != null && File(p).exists()) return listOf(p)
-                    throw IllegalStateException("找不到源文件")
+                    throw java.io.FileNotFoundException("source file not found")
                 }
                 val dir = sourcesDir(task.id)
                 val dest = File(dir, sanitizeFileName(task.sourceName).ifEmpty { "input" })
@@ -595,7 +596,7 @@ class ConvertManager(
         }
     }
 
-    private class DiskSpaceException : Exception(EngineErrorCode.E_NO_SPACE_CHECK.zhMessage)
+    private class DiskSpaceException : Exception("insufficient disk space (pre-check)")
 
     private data class MemError(val code: EngineErrorCode, val message: String, val detail: String?)
 
@@ -606,7 +607,7 @@ class ConvertManager(
         if (task.sourceSize > LARGE_FILE_WARN_BYTES && task.sourceSize > free) {
             return MemError(
                 EngineErrorCode.E_OUT_OF_MEMORY,
-                "文件 ${formatSize(task.sourceSize)} 较大，当前可用内存不足（${formatSize(free)}），请先释放内存后重试",
+                appContext.getString(R.string.error_memory_insufficient, formatSize(task.sourceSize), formatSize(free)),
                 "source=${task.sourceSize}, freeHeap=$free, max=${rt.maxMemory()}",
             )
         }
@@ -621,9 +622,7 @@ class ConvertManager(
             is DiskSpaceException -> EngineErrorCode.E_NO_SPACE_CHECK
             is SecurityException -> EngineErrorCode.E_PERMISSION
             is java.io.FileNotFoundException -> EngineErrorCode.E_SOURCE_MISSING
-            is IllegalStateException -> {
-                if ((t.message ?: "").contains("找不到")) EngineErrorCode.E_SOURCE_MISSING else EngineErrorCode.E_UNKNOWN
-            }
+            is IllegalStateException -> EngineErrorCode.E_UNKNOWN
             else -> classifyEngineOutput(t.message ?: "")
         }
         repo.mutate(taskId) {
@@ -632,7 +631,7 @@ class ConvertManager(
                 updatedAt = now(),
                 finishedAt = now(),
                 errorCode = code.name,
-                errorMessage = t.message?.takeIf { m -> m.isNotBlank() && !m.startsWith("java.") } ?: code.zhMessage,
+                errorMessage = appContext.getString(code.messageRes),
                 errorDetail = t.toString(),
             )
         }
@@ -644,7 +643,7 @@ class ConvertManager(
                 status = TaskStatus.CANCELLED,
                 updatedAt = now(),
                 finishedAt = now(),
-                errorMessage = EngineErrorCode.E_CANCELLED.zhMessage,
+                errorMessage = appContext.getString(EngineErrorCode.E_CANCELLED.messageRes),
                 errorCode = EngineErrorCode.E_CANCELLED.name,
             )
         }

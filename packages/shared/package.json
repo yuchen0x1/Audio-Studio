@@ -8,9 +8,11 @@
   "types": "src/index.ts",
   "scripts": {
     "test": "vitest run --no-file-parallelism",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:coverage": "vitest run --no-file-parallelism --coverage"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

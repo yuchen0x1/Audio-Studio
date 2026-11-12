@@ -4,10 +4,10 @@ import { openDB, type IDBPDatabase } from 'idb';
 import type { EncodeParams } from '@audio-studio/shared';
 
 export interface HistoryRecord {
-  id: string;                     // taskId
+  id: string; // taskId
   kind: 'convert' | 'trim' | 'merge';
   sourceLabel: string;
-  sourcePath?: string;            // 桌面端：可用于重新执行
+  sourcePath?: string; // 桌面端：可用于重新执行
   sourceFormat?: string;
   targetFormat?: string;
   params: EncodeParams;
@@ -85,7 +85,9 @@ export const useHistory = create<HistoryState>((set, get) => ({
       const d = await db();
       await d.put(STORE, rec);
       set((s) => ({
-        records: [rec, ...s.records.filter((r) => r.id !== rec.id)].sort((a, b) => b.createdAt - a.createdAt),
+        records: [rec, ...s.records.filter((r) => r.id !== rec.id)].sort(
+          (a, b) => b.createdAt - a.createdAt,
+        ),
       }));
     } catch (e) {
       console.error('[history] add failed', e);
@@ -96,7 +98,9 @@ export const useHistory = create<HistoryState>((set, get) => ({
     try {
       const d = await db();
       await d.delete(STORE, id);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     set((s) => ({ records: s.records.filter((r) => r.id !== id) }));
   },
 
@@ -104,7 +108,9 @@ export const useHistory = create<HistoryState>((set, get) => ({
     try {
       const d = await db();
       await d.clear(STORE);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     set({ records: [] });
   },
 
@@ -114,7 +120,12 @@ export const useHistory = create<HistoryState>((set, get) => ({
 }));
 
 /** 应用搜索与筛选（组件内用 useMemo 调用） */
-export function filterHistory(recs: HistoryRecord[], q: string, status: HistoryStatusFilter, kind: HistoryKindFilter): HistoryRecord[] {
+export function filterHistory(
+  recs: HistoryRecord[],
+  q: string,
+  status: HistoryStatusFilter,
+  kind: HistoryKindFilter,
+): HistoryRecord[] {
   const query = q.trim().toLowerCase();
   return recs.filter((r) => {
     if (status !== 'all' && r.status !== status) return false;

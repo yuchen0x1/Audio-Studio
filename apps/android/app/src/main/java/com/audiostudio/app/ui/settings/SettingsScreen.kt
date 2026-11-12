@@ -1,5 +1,7 @@
 package com.audiostudio.app.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +21,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -28,9 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.audiostudio.app.R
 import com.audiostudio.app.engine.Formats
 import com.audiostudio.app.engine.NAMING_TOKENS
 import com.audiostudio.app.engine.buildOutputFileName
@@ -41,15 +46,25 @@ import com.audiostudio.app.ui.components.Hint
 import com.audiostudio.app.ui.components.ScrollChips
 import com.audiostudio.app.ui.components.SectionCard
 import com.audiostudio.app.ui.components.formatBytes
+import com.audiostudio.app.updates.UpdateChecker
 import java.io.File
 
 @Composable
 fun SettingsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
     val settings by vm.settings.collectAsState()
     val caps by vm.capabilities.collectAsState()
+    val updateChecking by vm.updateChecking.collectAsState()
+    val latestRelease by vm.latestRelease.collectAsState()
+    val updateMessage by vm.updateMessage.collectAsState()
+    val lastCheckedAt by vm.lastUpdateCheckAt.collectAsState()
     val context = LocalContext.current
 
     var templateError by remember { mutableStateOf<String?>(null) }
+    val templateErrorMessages = mapOf(
+        R.string.error_template_empty to stringResource(R.string.error_template_empty),
+        R.string.error_template_path to stringResource(R.string.error_template_path),
+        R.string.error_template_long to stringResource(R.string.error_template_long),
+    )
     var cacheSize by remember { mutableStateOf(0L) }
     var cacheCleared by remember { mutableStateOf(false) }
 
@@ -84,13 +99,13 @@ fun SettingsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("我的", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Text(stringResource(R.string.settings_title), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
 
         // ---- 默认参数 ----
-        SectionCard(title = "转换默认参数") {
-            Text("默认目标格式", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
+        SectionCard(title = stringResource(R.string.settings_defaults_title)) {
+            Text(stringResource(R.string.settings_default_format), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
             if (encodable.isEmpty()) {
-                Hint("引擎能力检测中…")
+                Hint(stringResource(R.string.settings_detecting))
             } else {
                 ScrollChips(
                     options = encodable.map {
@@ -105,19 +120,19 @@ fun SettingsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
             val f = Formats.get(settings.defaultFormat)
             val bitrates = f?.bitrateOptionsKbps
             if (!bitrates.isNullOrEmpty()) {
-                Text("默认比特率", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
+                Text(stringResource(R.string.settings_default_bitrate), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
                 ScrollChips(
                     options = bitrates.map { "$it kbps" to "$it" },
                     selected = settings.defaultBitrateKbps.toString(),
                     onSelect = { vm.setDefaultBitrate(it.toInt()) },
                 )
             } else {
-                Hint("${f?.label ?: ""} 为无损/固定参数格式，无需默认比特率。")
+                Hint(stringResource(R.string.settings_lossless_hint, f?.label ?: ""))
             }
         }
 
         // ---- 输出位置 ----
-        SectionCard(title = "输出位置") {
+        SectionCard(title = stringResource(R.string.settings_output_title)) {
             val isDownloads = settings.outputMode != "tree"
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
@@ -125,7 +140,7 @@ fun SettingsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
-                        "下载/AudioStudio",
+                        stringResource(R.string.settings_output_downloads),
                         color = if (isDownloads) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp,
                     )
@@ -135,7 +150,7 @@ fun SettingsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
-                        if (isDownloads) "选择目录…" else "已选目录 ✓",
+                        if (isDownloads) stringResource(R.string.settings_output_pick) else stringResource(R.string.settings_output_picked),
                         color = if (!isDownloads) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp,
                     )
@@ -143,45 +158,45 @@ fun SettingsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(6.dp))
             if (!isDownloads) {
-                Hint("输出目录：${settings.outputTreeUri}")
+                Hint(stringResource(R.string.settings_output_dir, settings.outputTreeUri))
             } else {
-                Hint("输出写入系统下载目录下的 AudioStudio/ 文件夹（MediaStore）。")
+                Hint(stringResource(R.string.settings_output_downloads_hint))
             }
         }
 
         // ---- 并发 ----
-        SectionCard(title = "并发任务数：${settings.concurrency}") {
+        SectionCard(title = stringResource(R.string.settings_concurrency_title, settings.concurrency)) {
             Slider(
                 value = settings.concurrency.toFloat(),
                 onValueChange = { vm.setConcurrency(it.toInt()) },
                 valueRange = 1f..4f,
                 steps = 2,
             )
-            Hint("同时执行的转换数量（默认 2）。数值越大越快但越耗电/内存。")
+            Hint(stringResource(R.string.settings_concurrency_hint))
         }
 
         // ---- 主题 ----
-        SectionCard(title = "主题") {
+        SectionCard(title = stringResource(R.string.settings_theme_title)) {
             ScrollChips(
-                options = listOf("深色跟随系统" to "system", "强制深色" to "dark"),
+                options = listOf(stringResource(R.string.settings_theme_system) to "system", stringResource(R.string.settings_theme_dark) to "dark"),
                 selected = settings.themeMode,
                 onSelect = vm::setThemeMode,
             )
         }
 
         // ---- 文件名模板 ----
-        SectionCard(title = "输出文件名模板") {
+        SectionCard(title = stringResource(R.string.settings_template_title)) {
             OutlinedTextField(
                 value = settings.filenameTemplate,
                 onValueChange = {
-                    templateError = validateFilenameTemplate(it)
+                    templateError = validateFilenameTemplate(it)?.let { res -> templateErrorMessages[res] }
                     if (templateError == null) vm.setFilenameTemplate(it)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 isError = templateError != null,
                 supportingText = {
-                    Text(templateError ?: "扩展名由所选格式自动决定", fontSize = 12.sp)
+                    Text(templateError ?: stringResource(R.string.settings_template_hint), fontSize = 12.sp)
                 },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -191,25 +206,27 @@ fun SettingsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
                 ),
             )
             Spacer(Modifier.height(8.dp))
-            Hint("可用 token：" + NAMING_TOKENS.joinToString(" ") { it.first })
+            Hint(stringResource(R.string.settings_template_tokens, NAMING_TOKENS.joinToString(" ") { it.first }))
             // 预览
             val fmt = Formats.get(settings.defaultFormat) ?: Formats.ALL.first()
+            val sampleName = stringResource(R.string.settings_preview_sample_name)
+            val templateInvalidText = stringResource(R.string.settings_template_invalid)
             val preview = try {
                 buildOutputFileName(
                     settings.filenameTemplate,
-                    NamingContext(sourceName = "我的歌曲", sourceFormat = "mp3", format = fmt, index = 1),
+                    NamingContext(sourceName = sampleName, sourceFormat = "mp3", format = fmt, index = 1),
                 )
             } catch (t: Throwable) {
-                "（模板无效）"
+                templateInvalidText
             }
             Spacer(Modifier.height(6.dp))
-            Text("预览：$preview", color = com.audiostudio.app.ui.theme.SuccessGreen, fontSize = 13.sp)
+            Text(stringResource(R.string.settings_preview, preview), color = com.audiostudio.app.ui.theme.SuccessGreen, fontSize = 13.sp)
         }
 
         // ---- 缓存 ----
-        SectionCard(title = "本地缓存") {
+        SectionCard(title = stringResource(R.string.settings_cache_title)) {
             Text(
-                "导入/转换临时文件：${formatBytes(cacheSize)}",
+                stringResource(R.string.settings_cache_size, formatBytes(cacheSize)),
                 color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 13.sp,
             )
@@ -220,32 +237,94 @@ fun SettingsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
                         File(context.cacheDir, it).deleteRecursively()
                     }
                     cacheCleared = !cacheCleared
-                }) { Text("清理缓存", fontSize = 13.sp) }
+                }) { Text(stringResource(R.string.settings_clear_cache), fontSize = 13.sp) }
             }
             Spacer(Modifier.height(6.dp))
-            Hint("清理后历史任务需要重新读取源文件才能「再次执行」。")
+            Hint(stringResource(R.string.settings_cache_hint))
         }
 
         // ---- 引擎信息 ----
-        SectionCard(title = "引擎") {
+        SectionCard(title = stringResource(R.string.settings_engine_title)) {
             if (caps != null) {
                 Text(
-                    "FFmpeg ${caps!!.ffmpegVersion}（dev.ffmpegkit-maintained:ffmpeg-kit-audio:8.1.9，LGPL-3.0）",
+                    stringResource(R.string.settings_engine_info, caps!!.ffmpegVersion),
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 13.sp,
                 )
                 Spacer(Modifier.height(4.dp))
-                Hint("编码器 ${caps!!.encoders.size} 个 · 可编码格式 ${caps!!.formats.count { it.canEncode }} 个 · 能力实时检测自 ffmpeg -encoders")
+                Hint(stringResource(R.string.settings_engine_caps, caps!!.encoders.size, caps!!.formats.count { it.canEncode }))
             } else {
-                Hint("引擎初始化中…")
+                Hint(stringResource(R.string.settings_engine_init))
             }
             Spacer(Modifier.height(8.dp))
         }
 
+        // ---- 更新 ----
+        SectionCard(title = stringResource(R.string.settings_update_title)) {
+            Text(stringResource(R.string.settings_update_desc), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            Spacer(Modifier.height(8.dp))
+            Row {
+                Checkbox(
+                    checked = settings.autoCheckUpdates,
+                    onCheckedChange = vm::setAutoCheckUpdates,
+                )
+                Text(
+                    stringResource(R.string.settings_auto_check_updates),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+            Hint(stringResource(R.string.settings_auto_check_updates_hint))
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = vm::checkUpdates, enabled = !updateChecking) {
+                    Text(if (updateChecking) stringResource(R.string.settings_checking_updates) else stringResource(R.string.settings_check_updates))
+                }
+                OutlinedButton(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.REPOSITORY_PAGE)))
+                }) {
+                    Text(stringResource(R.string.settings_update_repository))
+                }
+            }
+            updateMessage?.let { Hint(it) }
+            Hint(UpdateChecker.timeAgo(context, lastCheckedAt))
+            latestRelease?.let { release ->
+                Spacer(Modifier.height(8.dp))
+                Hint(stringResource(R.string.settings_update_latest, release.tagName))
+                Text(stringResource(R.string.settings_update_release_notes), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(
+                    release.body.ifBlank { stringResource(R.string.settings_update_no_notes) },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                )
+                if (release.assets.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(stringResource(R.string.settings_update_assets), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    release.assets.forEach { asset ->
+                        val size = asset.sizeBytes?.let { formatBytes(it) }?.let { " · $it" }.orEmpty()
+                        Text(
+                            "${asset.name}$size",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                OutlinedButton(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.url)))
+                }) {
+                    Text(stringResource(R.string.settings_update_open_release))
+                }
+            }
+        }
+
         // ---- 关于 ----
-        SectionCard(title = "关于") {
-            Hint("Audio Studio Android v1.0.0")
-            Hint("全部转换在本机完成；不上传音频、不扫描全盘、失败不破坏源文件。")
+        SectionCard(title = stringResource(R.string.settings_about_title)) {
+            @Suppress("DEPRECATION")
+            val appVersion = context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
+            Hint("Audio Studio Android $appVersion")
+            Hint(stringResource(R.string.settings_about_privacy))
         }
     }
 }

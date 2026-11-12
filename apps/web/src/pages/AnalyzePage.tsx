@@ -27,7 +27,10 @@ export function AnalyzePage() {
   const S = lang === 'en' ? EN : ZH;
 
   const [state, setState] = useState<AnalyzeState>({
-    source: null, probe: null, probing: false, error: null,
+    source: null,
+    probe: null,
+    probing: false,
+    error: null,
   });
   const reqSeq = useRef(0);
 
@@ -42,16 +45,21 @@ export function AnalyzePage() {
     } catch (e) {
       if (seq !== reqSeq.current) return;
       setState({
-        source: src, probe: null, probing: false,
+        source: src,
+        probe: null,
+        probing: false,
         error: e instanceof Error ? e.message : String(e),
       });
     }
   }, []);
 
-  const onFiles = useCallback((sources: AudioSource[]) => {
-    const first = sources[0];
-    if (first) void runProbe(first);
-  }, [runProbe]);
+  const onFiles = useCallback(
+    (sources: AudioSource[]) => {
+      const first = sources[0];
+      if (first) void runProbe(first);
+    },
+    [runProbe],
+  );
 
   const pick = useCallback(async () => {
     const sources = await pickAudioFiles(false);
@@ -82,7 +90,9 @@ export function AnalyzePage() {
           <div className="card">
             <div className="row-between" style={{ flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
               <div className="row" style={{ minWidth: 0 }}>
-                <strong className="truncate" title={source.name}>{source.name}</strong>
+                <strong className="truncate" title={source.name}>
+                  {source.name}
+                </strong>
                 {probe?.format && (
                   <span className="badge badge-accent">{FORMATS[probe.format].label}</span>
                 )}
@@ -123,7 +133,9 @@ export function AnalyzePage() {
               <IconWarning size={16} />
               <div className="grow">
                 <strong>{S.probeFailed}</strong>
-                <div className="xs mono" style={{ wordBreak: 'break-all' }}>{error}</div>
+                <div className="xs mono" style={{ wordBreak: 'break-all' }}>
+                  {error}
+                </div>
                 <button className="btn btn-sm mt-2" onClick={() => void runProbe(source)}>
                   {t('common.retry')}
                 </button>
@@ -160,9 +172,21 @@ export function AnalyzePage() {
               <section className="card">
                 <div className="card-title">{t('analyze.streams')}</div>
                 {probe.streamSummary.length ? (
-                  <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: 18,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
                     {probe.streamSummary.map((line, i) => (
-                      <li key={i} className="mono xs" style={{ color: 'var(--fg-2)', wordBreak: 'break-word' }}>
+                      <li
+                        key={i}
+                        className="mono xs"
+                        style={{ color: 'var(--fg-2)', wordBreak: 'break-word' }}
+                      >
                         {line}
                       </li>
                     ))}

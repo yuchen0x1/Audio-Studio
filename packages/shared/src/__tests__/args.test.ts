@@ -1,17 +1,30 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildConvertArgs, buildTrimArgs, buildMergeArgs, buildMeasureArgs,
-  parseVolumedetect, parseLoudnormJson, selectEncoder, buildAudioFilters,
+  buildConvertArgs,
+  buildTrimArgs,
+  buildMergeArgs,
+  buildMeasureArgs,
+  parseVolumedetect,
+  parseLoudnormJson,
+  selectEncoder,
+  buildAudioFilters,
 } from '../args';
 import { defaultParamsFor, deriveParams, validateParams } from '../params';
 import type { ConvertJob, TrimJob, MergeJob } from '../engine';
 
 const src = { id: 's1', name: 'input.mp3', sizeBytes: 1000, path: 'C:/music/input.mp3' };
 
-function convertJob(format: Parameters<typeof defaultParamsFor>[0], params = defaultParamsFor(format)): ConvertJob {
+function convertJob(
+  format: Parameters<typeof defaultParamsFor>[0],
+  params = defaultParamsFor(format),
+): ConvertJob {
   return {
-    kind: 'convert', taskId: 't1', source: src, params,
-    outputFileName: 'out.' + format, outputDir: 'C:/out',
+    kind: 'convert',
+    taskId: 't1',
+    source: src,
+    params,
+    outputFileName: 'out.' + format,
+    outputDir: 'C:/out',
   };
 }
 
@@ -37,10 +50,18 @@ describe('FFmpeg 参数向量构建', () => {
   });
 
   it('位深度驱动编码器选择（wav）', () => {
-    expect(selectEncoder('wav', { ...defaultParamsFor('wav'), bitDepth: 16 }).encoder).toBe('pcm_s16le');
-    expect(selectEncoder('wav', { ...defaultParamsFor('wav'), bitDepth: 24 }).encoder).toBe('pcm_s24le');
-    expect(selectEncoder('wav', { ...defaultParamsFor('wav'), bitDepth: 'f32' }).encoder).toBe('pcm_f32le');
-    expect(selectEncoder('aiff', { ...defaultParamsFor('aiff'), bitDepth: 24 }).encoder).toBe('pcm_s24be');
+    expect(selectEncoder('wav', { ...defaultParamsFor('wav'), bitDepth: 16 }).encoder).toBe(
+      'pcm_s16le',
+    );
+    expect(selectEncoder('wav', { ...defaultParamsFor('wav'), bitDepth: 24 }).encoder).toBe(
+      'pcm_s24le',
+    );
+    expect(selectEncoder('wav', { ...defaultParamsFor('wav'), bitDepth: 'f32' }).encoder).toBe(
+      'pcm_f32le',
+    );
+    expect(selectEncoder('aiff', { ...defaultParamsFor('aiff'), bitDepth: 24 }).encoder).toBe(
+      'pcm_s24be',
+    );
   });
 
   it('FLAC 压缩等级映射', () => {
@@ -112,10 +133,14 @@ describe('FFmpeg 参数向量构建', () => {
 
   it('裁剪：输出侧 -ss/-t 精确区间', () => {
     const job: TrimJob = {
-      kind: 'trim', taskId: 't2', source: src,
-      startMs: 1500, endMs: 8250,
+      kind: 'trim',
+      taskId: 't2',
+      source: src,
+      startMs: 1500,
+      endMs: 8250,
       params: defaultParamsFor('mp3'),
-      outputFileName: 'cut.mp3', outputDir: 'C:/out',
+      outputFileName: 'cut.mp3',
+      outputDir: 'C:/out',
     };
     const args = buildTrimArgs(job);
     expect(args[args.indexOf('-ss') + 1]).toBe('1.500');
@@ -124,23 +149,30 @@ describe('FFmpeg 参数向量构建', () => {
 
   it('裁剪区间非法时抛错', () => {
     const job: TrimJob = {
-      kind: 'trim', taskId: 't3', source: src,
-      startMs: 5000, endMs: 1000,
-      params: defaultParamsFor('mp3'), outputFileName: 'x.mp3', outputDir: 'o',
+      kind: 'trim',
+      taskId: 't3',
+      source: src,
+      startMs: 5000,
+      endMs: 1000,
+      params: defaultParamsFor('mp3'),
+      outputFileName: 'x.mp3',
+      outputDir: 'o',
     };
     expect(() => buildTrimArgs(job)).toThrow(/结束时间/);
   });
 
   it('合并：concat 滤镜 + 间隙静音 + 每段音量', () => {
     const job: MergeJob = {
-      kind: 'merge', taskId: 't4',
+      kind: 'merge',
+      taskId: 't4',
       items: [
         { source: src, gainDb: -3, fadeInMs: 200 },
         { source: { ...src, id: 's2', name: 'b.wav', path: 'C:/music/b.wav' }, fadeOutMs: 300 },
       ],
       gapMs: 500,
       params: defaultParamsFor('mp3'),
-      outputFileName: 'merged.mp3', outputDir: 'C:/out',
+      outputFileName: 'merged.mp3',
+      outputDir: 'C:/out',
     };
     const args = buildMergeArgs(job, { resolvedSampleRate: 44100, resolvedChannels: 2 });
     expect(args).toContain('-filter_complex');
@@ -157,10 +189,13 @@ describe('FFmpeg 参数向量构建', () => {
 
   it('合并无间隙时不注入静音输入', () => {
     const job: MergeJob = {
-      kind: 'merge', taskId: 't5',
+      kind: 'merge',
+      taskId: 't5',
       items: [{ source: src }, { source: { ...src, id: 's2', path: 'b.wav' } }],
-      gapMs: 0, params: defaultParamsFor('flac'),
-      outputFileName: 'm.flac', outputDir: 'o',
+      gapMs: 0,
+      params: defaultParamsFor('flac'),
+      outputFileName: 'm.flac',
+      outputDir: 'o',
     };
     const args = buildMergeArgs(job, { resolvedSampleRate: 44100, resolvedChannels: 2 });
     expect(args.filter((a) => a === '-i')).toHaveLength(2);
@@ -185,7 +220,8 @@ describe('FFmpeg 参数向量构建', () => {
 
 describe('测量输出解析', () => {
   it('volumedetect', () => {
-    const stderr = '[Parsed_volumedetect_0 @ 0x1] mean_volume: -23.1 dB\n[Parsed_volumedetect_0 @ 0x1] max_volume: -6.4 dB';
+    const stderr =
+      '[Parsed_volumedetect_0 @ 0x1] mean_volume: -23.1 dB\n[Parsed_volumedetect_0 @ 0x1] max_volume: -6.4 dB';
     expect(parseVolumedetect(stderr)).toBeCloseTo(-6.4);
     expect(parseVolumedetect('no data')).toBeUndefined();
   });

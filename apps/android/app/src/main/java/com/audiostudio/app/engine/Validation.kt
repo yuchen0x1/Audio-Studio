@@ -1,5 +1,8 @@
 package com.audiostudio.app.engine
 
+import androidx.annotation.StringRes
+import com.audiostudio.app.R
+
 /** 安全校验：文件名清洗、路径安全检查（与 packages/shared/src/validation.ts 一致） */
 
 private val WINDOWS_RESERVED = setOf(
@@ -60,22 +63,23 @@ fun isOutputNameSafe(name: String): Boolean {
 fun assertSafeArg(arg: String, index: Int, role: String) {
     if (role == "path") {
         require(!arg.startsWith("-")) {
-            "参数 #$index 非法：路径不能以 \"-\" 开头: ${arg.take(60)}"
+            "illegal arg #$index: path must not start with \"-\": ${arg.take(60)}"
         }
         require(!arg.contains('\u0000') && !arg.contains('\r') && !arg.contains('\n')) {
-            "参数 #$index 非法：路径包含控制字符"
+            "illegal arg #$index: path contains control characters"
         }
     }
 }
 
-/** 校验模板是否安全（防止模板导致路径逃逸） */
-fun validateFilenameTemplate(template: String): String? {
-    if (template.isBlank()) return "文件名模板不能为空"
+/** 校验模板是否安全（防止模板导致路径逃逸）；返回错误字符串资源 id，null 表示合法 */
+@StringRes
+fun validateFilenameTemplate(template: String): Int? {
+    if (template.isBlank()) return R.string.error_template_empty
     val withoutTokens = template.replace(Regex("\\{[a-z_]+\\}", RegexOption.IGNORE_CASE), "")
     if (withoutTokens.contains('\\') || withoutTokens.contains('/') || withoutTokens.contains('\u0000')) {
-        return "文件名模板不能包含路径分隔符"
+        return R.string.error_template_path
     }
-    if (template.length > 200) return "文件名模板过长"
+    if (template.length > 200) return R.string.error_template_long
     return null
 }
 

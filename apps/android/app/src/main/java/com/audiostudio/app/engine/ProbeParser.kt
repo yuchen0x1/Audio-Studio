@@ -1,5 +1,6 @@
 package com.audiostudio.app.engine
 
+import com.audiostudio.app.R
 import org.json.JSONObject
 
 /** 真实文件探测结果（禁止写死数据） */
@@ -17,7 +18,8 @@ data class ProbeResult(
     val bitDepth: Int? = null,
     val fileSizeBytes: Long? = null,
     val tags: Map<String, String> = emptyMap(),
-    val warnings: List<String> = emptyList(),
+    /** 展示用警告（字符串资源 id，在 UI 边界解析） */
+    val warnings: List<Int> = emptyList(),
 ) {
     /** 展示用：格式（由容器推断的小写标识） */
     val containerFormat: String
@@ -40,7 +42,7 @@ fun parseProbeJson(json: String, fileSizeBytes: Long? = null): ProbeResult {
     var layout: String? = null
     var bitDepth: Int? = null
     var audioDurationMs: Long? = null
-    val warnings = mutableListOf<String>()
+    val warnings = mutableListOf<Int>()
 
     if (streams != null) {
         for (i in 0 until streams.length()) {
@@ -69,7 +71,7 @@ fun parseProbeJson(json: String, fileSizeBytes: Long? = null): ProbeResult {
 
     val formatDurationMs = parseDurationMs(format.optString("duration"))
     val durationMs = formatDurationMs ?: audioDurationMs
-    if (durationMs == null) warnings.add("无法获取时长信息")
+    if (durationMs == null) warnings.add(R.string.probe_warning_no_duration)
 
     val bitrate = format.optLong("bit_rate", 0).takeIf { it > 0 }?.toInt()?.div(1000)
         ?: run {

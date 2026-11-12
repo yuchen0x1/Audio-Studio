@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -113,13 +114,13 @@ fun <T> ChipRow(
 @Composable
 fun StatusChip(status: TaskStatus) {
     val (color, text) = when (status) {
-        TaskStatus.QUEUED -> MaterialTheme.colorScheme.onSurfaceVariant to status.zh
-        TaskStatus.PREPARING -> WarningOrange to status.zh
-        TaskStatus.RUNNING -> MaterialTheme.colorScheme.primary to status.zh
-        TaskStatus.PAUSED -> WarningOrange to status.zh
-        TaskStatus.COMPLETED -> SuccessGreen to status.zh
-        TaskStatus.FAILED -> ErrorRed to status.zh
-        TaskStatus.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant to status.zh
+        TaskStatus.QUEUED -> MaterialTheme.colorScheme.onSurfaceVariant to stringResource(status.labelRes)
+        TaskStatus.PREPARING -> WarningOrange to stringResource(status.labelRes)
+        TaskStatus.RUNNING -> MaterialTheme.colorScheme.primary to stringResource(status.labelRes)
+        TaskStatus.PAUSED -> WarningOrange to stringResource(status.labelRes)
+        TaskStatus.COMPLETED -> SuccessGreen to stringResource(status.labelRes)
+        TaskStatus.FAILED -> ErrorRed to stringResource(status.labelRes)
+        TaskStatus.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant to stringResource(status.labelRes)
     }
     Box(
         modifier = Modifier

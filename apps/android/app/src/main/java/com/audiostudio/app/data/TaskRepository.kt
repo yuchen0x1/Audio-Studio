@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.audiostudio.app.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,7 +55,7 @@ class TaskRepository(private val context: Context) {
                         updatedAt = now,
                         finishedAt = now,
                         errorCode = "E_TIMEOUT",
-                        errorMessage = "应用进程被终止，任务中断（可重试）",
+                        errorMessage = context.getString(R.string.error_process_killed),
                         progress = 0f,
                         speed = null,
                     )

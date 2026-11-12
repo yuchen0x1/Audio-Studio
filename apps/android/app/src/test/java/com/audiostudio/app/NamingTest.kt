@@ -93,8 +93,8 @@ class NamingTest {
     @Test
     fun `模板校验拒绝路径分隔符`() {
         assertNull(validateFilenameTemplate("{name}_{format}"))
-        assertEquals("文件名模板不能为空", validateFilenameTemplate("  "))
-        assertEquals("文件名模板不能包含路径分隔符", validateFilenameTemplate("a/b{name}"))
+        assertEquals(R.string.error_template_empty, validateFilenameTemplate("  "))
+        assertEquals(R.string.error_template_path, validateFilenameTemplate("a/b{name}"))
     }
 }
 

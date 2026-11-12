@@ -24,8 +24,9 @@
   --sp-12: 48px;
 
   /* ---- 字体 ---- */
-  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "Cascadia Code", "SF Mono", Consolas, monospace;
+  --font-sans:
+    'Inter', 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'SF Mono', Consolas, monospace;
   --fs-xs: 11px;
   --fs-sm: 12.5px;
   --fs-md: 14px;
@@ -63,30 +64,34 @@
 
 /* ============ 深色主题（默认） ============ */
 :root,
-[data-theme="dark"] {
+[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #0b0d12;              /* 主背景：深色石墨黑 */
-  --bg-1: #0f1219;            /* 一级面板 */
-  --bg-2: #141824;            /* 二级面板 / 卡片 */
-  --bg-3: #1a1f30;            /* 三级：hover 面 */
-  --bg-4: #212739;            /* 活跃面 */
+  --bg: #0b0d12; /* 主背景：深色石墨黑 */
+  --bg-1: #0f1219; /* 一级面板 */
+  --bg-2: #141824; /* 二级面板 / 卡片 */
+  --bg-3: #1a1f30; /* 三级：hover 面 */
+  --bg-4: #212739; /* 活跃面 */
 
-  --border: #1f2430;          /* 细腻边框 */
+  --border: #1f2430; /* 细腻边框 */
   --border-strong: #2b3247;
   --border-focus: #4f8cff;
 
-  --fg: #e8ecf5;              /* 主文字 */
-  --fg-2: #a3adc2;            /* 次级文字 */
-  --fg-3: #6b7490;            /* 弱文字 */
+  --fg: #e8ecf5; /* 主文字 */
+  --fg-2: #a3adc2; /* 次级文字 */
+  --fg-3: #6b7490; /* 弱文字 */
   --fg-inverse: #0b0d12;
 
-  --accent: hsl(var(--accent-h), var(--accent-s), 62%);       /* 电光蓝 */
+  --accent: hsl(var(--accent-h), var(--accent-s), 62%); /* 电光蓝 */
   --accent-strong: hsl(var(--accent-h), var(--accent-s), 55%);
   --accent-soft: hsla(var(--accent-h), var(--accent-s), 62%, 0.14);
   --accent-soft-2: hsla(var(--accent-h), var(--accent-s), 62%, 0.24);
-  --accent-2: hsl(var(--accent-2-h), 85%, 70%);               /* 蓝紫 */
-  --accent-grad: linear-gradient(135deg, hsl(var(--accent-h), 90%, 58%), hsl(var(--accent-2-h), 85%, 66%));
+  --accent-2: hsl(var(--accent-2-h), 85%, 70%); /* 蓝紫 */
+  --accent-grad: linear-gradient(
+    135deg,
+    hsl(var(--accent-h), 90%, 58%),
+    hsl(var(--accent-2-h), 85%, 66%)
+  );
 
   --success: #3ddc97;
   --success-soft: rgba(61, 220, 151, 0.14);
@@ -101,7 +106,9 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
-  --glow-accent: 0 0 0 1px hsla(var(--accent-h), var(--accent-s), 62%, 0.35), 0 0 18px hsla(var(--accent-h), var(--accent-s), 62%, 0.18);
+  --glow-accent:
+    0 0 0 1px hsla(var(--accent-h), var(--accent-s), 62%, 0.35),
+    0 0 18px hsla(var(--accent-h), var(--accent-s), 62%, 0.18);
 
   --scrollbar: #262c3d;
   --scrollbar-hover: #333b52;
@@ -109,7 +116,7 @@
 }
 
 /* ============ 浅色主题 ============ */
-[data-theme="light"] {
+[data-theme='light'] {
   color-scheme: light;
 
   --bg: #f4f6fa;
@@ -129,24 +136,28 @@
 
   --accent: hsl(var(--accent-h), var(--accent-s), 46%);
   --accent-strong: hsl(var(--accent-h), var(--accent-s), 40%);
-  --accent-soft: hsla(var(--accent-h), var(--accent-s), 46%, 0.10);
+  --accent-soft: hsla(var(--accent-h), var(--accent-s), 46%, 0.1);
   --accent-soft-2: hsla(var(--accent-h), var(--accent-s), 46%, 0.18);
   --accent-2: hsl(var(--accent-2-h), 75%, 52%);
-  --accent-grad: linear-gradient(135deg, hsl(var(--accent-h), 90%, 48%), hsl(var(--accent-2-h), 80%, 56%));
+  --accent-grad: linear-gradient(
+    135deg,
+    hsl(var(--accent-h), 90%, 48%),
+    hsl(var(--accent-2-h), 80%, 56%)
+  );
 
   --success: #16a06a;
   --success-soft: rgba(22, 160, 106, 0.12);
   --warning: #d97706;
   --warning-soft: rgba(217, 119, 6, 0.12);
   --danger: #dc2626;
-  --danger-soft: rgba(220, 38, 38, 0.10);
+  --danger-soft: rgba(220, 38, 38, 0.1);
 
   --wave: #c9d2e4;
 
   --shadow-sm: 0 1px 2px rgba(20, 26, 40, 0.06);
-  --shadow-md: 0 4px 16px rgba(20, 26, 40, 0.10);
+  --shadow-md: 0 4px 16px rgba(20, 26, 40, 0.1);
   --shadow-lg: 0 16px 48px rgba(20, 26, 40, 0.16);
-  --glow-accent: 0 0 0 1px hsla(var(--accent-h), var(--accent-s), 46%, 0.30);
+  --glow-accent: 0 0 0 1px hsla(var(--accent-h), var(--accent-s), 46%, 0.3);
 
   --scrollbar: #c9d1e0;
   --scrollbar-hover: #aab6cc;

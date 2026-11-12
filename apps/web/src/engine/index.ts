@@ -20,10 +20,12 @@ export function getEngine(): AudioEngine {
 /** 初始化引擎并返回能力（并发调用共享同一个 Promise） */
 export function initEngine(): Promise<EngineCapabilities> {
   if (!initPromise) {
-    initPromise = getEngine().init().catch((e) => {
-      initPromise = null; // 失败允许重试
-      throw e;
-    });
+    initPromise = getEngine()
+      .init()
+      .catch((e) => {
+        initPromise = null; // 失败允许重试
+        throw e;
+      });
   }
   return initPromise;
 }

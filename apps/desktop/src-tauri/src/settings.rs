@@ -33,12 +33,7 @@ impl Default for Settings {
 impl Settings {
     /// 夹紧非法值（外部 JSON 可能被手工篡改）
     pub fn sanitized(mut self) -> Self {
-        if self.max_concurrent_tasks < 1 {
-            self.max_concurrent_tasks = 1;
-        }
-        if self.max_concurrent_tasks > 4 {
-            self.max_concurrent_tasks = 4;
-        }
+        self.max_concurrent_tasks = self.max_concurrent_tasks.clamp(1, 4);
         let p = self
             .ffmpeg_path
             .as_deref()
@@ -81,9 +76,33 @@ mod tests {
 
     #[test]
     fn sanitized_clamps_concurrency() {
-        assert_eq!(Settings { max_concurrent_tasks: 0, ..Default::default() }.sanitized().max_concurrent_tasks, 1);
-        assert_eq!(Settings { max_concurrent_tasks: 99, ..Default::default() }.sanitized().max_concurrent_tasks, 4);
-        assert_eq!(Settings { max_concurrent_tasks: 3, ..Default::default() }.sanitized().max_concurrent_tasks, 3);
+        assert_eq!(
+            Settings {
+                max_concurrent_tasks: 0,
+                ..Default::default()
+            }
+            .sanitized()
+            .max_concurrent_tasks,
+            1
+        );
+        assert_eq!(
+            Settings {
+                max_concurrent_tasks: 99,
+                ..Default::default()
+            }
+            .sanitized()
+            .max_concurrent_tasks,
+            4
+        );
+        assert_eq!(
+            Settings {
+                max_concurrent_tasks: 3,
+                ..Default::default()
+            }
+            .sanitized()
+            .max_concurrent_tasks,
+            3
+        );
     }
 
     #[test]
@@ -111,7 +130,7 @@ mod tests {
         let loaded = Settings::load(&p);
         assert_eq!(loaded.ffmpeg_path.as_deref(), Some("C:/tools/ffmpeg.exe"));
         assert_eq!(loaded.max_concurrent_tasks, 3);
-        assert_eq!(loaded.notifications_enabled, false);
+        assert!(!loaded.notifications_enabled);
         let _ = fs::remove_dir_all(&dir);
     }
 }

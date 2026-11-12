@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+target
+apps/web/public/ffmpeg
+apps/android/app/build
+apps/desktop/src-tauri/target
+pnpm-lock.yaml
+*.min.js

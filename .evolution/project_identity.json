@@ -1,0 +1,26 @@
+{
+  "name": "Audio Studio",
+  "root": "E:\\移动云盘同步盘\\Audio Studio",
+  "repository": "https://github.com/yuchen0x1/Audio-Studio.git",
+  "branch": "main",
+  "head_at_audit": "194b41b355a53d480e255d1f28fed1d8c999ced8",
+  "audit_date": "2026-11-12",
+  "project_types": [
+    "Web application",
+    "Windows desktop application",
+    "Android application",
+    "local-first developer/media tool"
+  ],
+  "technology": {
+    "workspace": "pnpm workspace",
+    "shared": "TypeScript",
+    "web": "React 18 + Vite + Zustand + FFmpeg.wasm",
+    "desktop": "Tauri 2 + Rust + native FFmpeg",
+    "android": "Kotlin + Jetpack Compose + native FFmpeg"
+  },
+  "isolation": {
+    "scope": "Only this project root was inspected or modified",
+    "existing_dirty_worktree_preserved": true,
+    "automatic_git_reset_or_push": false
+  }
+}

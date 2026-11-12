@@ -1,0 +1,86 @@
+{
+  "date": "2026-11-12",
+  "priority_order": ["P0", "P1", "P2", "P3", "P4", "P5"],
+  "items": [
+    {
+      "id": "A-001",
+      "class": "A",
+      "priority": "P0",
+      "feature": "Data-safe local processing and path validation",
+      "current_state": "Implemented in shared validation and desktop safety layers; evidence is source review and passing TypeScript tests.",
+      "reference": "yt-dlp diagnostics / native FFmpeg front ends",
+      "status": "BASELINE_PRESENT",
+      "test": "shared validation tests; desktop cargo tests when toolchain is available"
+    },
+    {
+      "id": "A-002",
+      "class": "A",
+      "priority": "P1",
+      "feature": "Cross-platform conversion pipeline",
+      "current_state": "Implemented across shared rules, Web WASM, Tauri native engine and Android service. Web/shared logic checks pass; native and CLI FFmpeg matrix is not runnable in this environment.",
+      "reference": "FFmpeg.wasm, fre:ac",
+      "status": "PARTIALLY_VERIFIED",
+      "test": "pnpm test; run ffmpeg/ffprobe integration matrix on a machine with CLI FFmpeg"
+    },
+    {
+      "id": "B-001",
+      "class": "B",
+      "priority": "P2",
+      "feature": "Directory import and batch queue recovery",
+      "current_state": "Directory reader handles multiple batches, filters audio, applies depth and 500-file limit; batch UI/state exists. Large queue and real browser workflow remain unverified.",
+      "reference": "fre:ac",
+      "status": "IMPLEMENTED_BASELINE_NEEDS_E2E",
+      "test": "Dropzone unit tests pass; browser automation blocked because Python Playwright is missing"
+    },
+    {
+      "id": "B-002",
+      "class": "B",
+      "priority": "P2",
+      "feature": "Preset-first audio encoding",
+      "current_state": "Basic format/bitrate/sample-rate controls exist; purpose-based presets are not a complete shared feature.",
+      "reference": "HandBrake",
+      "status": "GAP",
+      "target": "Add shared voice/music/lossless presets with explicit editable details and cross-platform tests.",
+      "difficulty": "medium"
+    },
+    {
+      "id": "B-003",
+      "class": "B",
+      "priority": "P2",
+      "feature": "Structured diagnostic export",
+      "current_state": "Task logs and error codes exist; no confirmed redacted diagnostic bundle export.",
+      "reference": "yt-dlp actionable diagnostics",
+      "status": "GAP",
+      "target": "Export version, capabilities, task metadata and truncated redacted logs without audio bytes, secrets or absolute paths.",
+      "difficulty": "medium"
+    },
+    {
+      "id": "C-001",
+      "class": "C",
+      "priority": "P3",
+      "feature": "Real cross-platform visual and device acceptance",
+      "current_state": "Component tests and responsive CSS exist; Chromium, Windows installer and Android device flows were not run.",
+      "reference": "LosslessCut release discipline",
+      "status": "GAP",
+      "test": "Playwright smoke, Tauri install/update, Android 13+ permission and background-service matrix"
+    },
+    {
+      "id": "D-001",
+      "class": "D",
+      "priority": "P4",
+      "feature": "Downloader, CD retrieval, DAW timeline, cloud accounts",
+      "current_state": "Not present and not aligned with local-first cross-platform scope.",
+      "reference": "yt-dlp, fre:ac, LosslessCut",
+      "status": "DEFERRED_BY_SCOPE",
+      "reason": "Would add network, hardware, licensing, privacy and maintenance cost without fixing the core conversion workflow."
+    }
+  ],
+  "this_run_code_changes": [
+    "Tauri updater signature enforcement and release asset validation",
+    "Release provenance checks against main and SemVer prerelease handling",
+    "Web/Android release asset metadata display",
+    "Android release version injection from RELEASE_VERSION",
+    "Automatic update documentation and release manifest/checksum generation"
+  ],
+  "change_note": "The worktree already contained a large uncommitted implementation set before this run. Existing changes were preserved; update-specific files were inspected before incremental hardening. No competitor source code was copied."
+}

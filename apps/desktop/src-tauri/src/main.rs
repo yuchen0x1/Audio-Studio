@@ -21,7 +21,10 @@ pub struct TaskEntry {
 
 impl Default for TaskEntry {
     fn default() -> Self {
-        Self { child: Mutex::new(None), cancelled: AtomicBool::new(false) }
+        Self {
+            child: Mutex::new(None),
+            cancelled: AtomicBool::new(false),
+        }
     }
 }
 
@@ -33,7 +36,10 @@ pub struct SlotSemaphore {
 
 impl SlotSemaphore {
     pub fn new() -> Self {
-        Self { used: Mutex::new(0), cv: Condvar::new() }
+        Self {
+            used: Mutex::new(0),
+            cv: Condvar::new(),
+        }
     }
 
     pub fn acquire(&self, max: usize) -> SlotGuard<'_> {
@@ -77,6 +83,8 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let config_dir = app.path().app_config_dir()?;
             let log_dir = app.path().app_log_dir()?;

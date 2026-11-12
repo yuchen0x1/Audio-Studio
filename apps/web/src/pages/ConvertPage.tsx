@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import type { FormatId } from '@audio-studio/shared';
 import { defaultParamsFor } from '@audio-studio/shared';
 import { useSession, type SessionFile, type SessionTask } from '../stores/session';
-import { useI18n } from '../i18n';
+import { useI18n, useT } from '../i18n';
 import { Dropzone } from '../components/Dropzone';
 import { FormatSelect } from '../components/FormatSelect';
 import { ParamPanel } from '../components/ParamPanel';
@@ -11,9 +11,14 @@ import { TaskRow } from '../components/TaskRow';
 import { Modal } from '../components/Modal';
 import { fmtDuration, fmtSize, fmtBitrate, fmtSampleRate, fmtChannels } from '../utils/format';
 import { toast } from '../stores/toast';
-import { deliverAll, deliverResult, isDesktop } from '../platform';
+import { deliverAll, isDesktop } from '../platform';
 import {
-  IconMusic, IconClose, IconPlay, IconTrash, IconDownload, IconEdit,
+  IconMusic,
+  IconClose,
+  IconPlay,
+  IconTrash,
+  IconDownload,
+  IconEdit,
 } from '../components/Icons';
 
 export function ConvertPage() {
@@ -24,7 +29,6 @@ export function ConvertPage() {
   const addFiles = useSession((s) => s.addFiles);
   const removeFile = useSession((s) => s.removeFile);
   const clearFiles = useSession((s) => s.clearFiles);
-  const setFileParams = useSession((s) => s.setFileParams);
   const startForFile = useSession((s) => s.startForFile);
   const startAll = useSession((s) => s.startAll);
 
@@ -34,12 +38,15 @@ export function ConvertPage() {
 
   const editing = files.find((f) => f.source.id === editingId);
 
-  const convertTasks = useMemo(
-    () => tasks.filter((t) => t.kind === 'convert'),
-    [tasks],
-  );
+  const convertTasks = useMemo(() => tasks.filter((t) => t.kind === 'convert'), [tasks]);
   const pendingFiles = useMemo(
-    () => files.filter((f) => !convertTasks.some((t) => t.fileId === f.source.id && !['failed', 'cancelled'].includes(t.status))),
+    () =>
+      files.filter(
+        (f) =>
+          !convertTasks.some(
+            (t) => t.fileId === f.source.id && !['failed', 'cancelled'].includes(t.status),
+          ),
+      ),
     [files, convertTasks],
   );
   const completedTasks = useMemo(
@@ -65,7 +72,11 @@ export function ConvertPage() {
         compact
         onFiles={(s) => void addFiles(s)}
         title={zh ? '拖入音频文件或点击选择' : 'Drop audio files or click to choose'}
-        sub={zh ? '支持 MP3 / WAV / FLAC / AAC / M4A / OGG / OPUS 等格式' : 'MP3 / WAV / FLAC / AAC / M4A / OGG / OPUS and more'}
+        sub={
+          zh
+            ? '支持 MP3 / WAV / FLAC / AAC / M4A / OGG / OPUS 等格式'
+            : 'MP3 / WAV / FLAC / AAC / M4A / OGG / OPUS and more'
+        }
       />
 
       {/* 批量格式（多文件时显示） */}
@@ -81,14 +92,23 @@ export function ConvertPage() {
             </div>
             <button
               className="btn btn-sm"
-              onClick={() => { if (bulkFormat) { applyFormatToAll(bulkFormat); toast.success(zh ? '已应用到全部文件' : 'Applied to all files'); } }}
+              onClick={() => {
+                if (bulkFormat) {
+                  applyFormatToAll(bulkFormat);
+                  toast.success(zh ? '已应用到全部文件' : 'Applied to all files');
+                }
+              }}
               disabled={!bulkFormat}
             >
               {zh ? '应用到全部' : 'Apply to all'}
             </button>
           </div>
           <div className="row" style={{ gap: 'var(--sp-2)' }}>
-            <button className="btn btn-sm" onClick={() => void startAll()} disabled={!pendingFiles.length}>
+            <button
+              className="btn btn-sm"
+              onClick={() => void startAll()}
+              disabled={!pendingFiles.length}
+            >
               <IconPlay size={13} /> {zh ? '开始全部' : 'Start all'}
             </button>
             <button
@@ -105,10 +125,14 @@ export function ConvertPage() {
       {/* 文件列表 */}
       {files.length === 0 ? (
         <div className="empty">
-          <div className="empty-icon"><IconMusic size={26} /></div>
+          <div className="empty-icon">
+            <IconMusic size={26} />
+          </div>
           <div className="empty-title">{zh ? '还没有添加文件' : 'No files added yet'}</div>
           <div className="empty-desc">
-            {zh ? '拖入文件或点击选择，可一次添加多个文件进行批量转换' : 'Drop files or click to choose — add multiple files for batch conversion'}
+            {zh
+              ? '拖入文件或点击选择，可一次添加多个文件进行批量转换'
+              : 'Drop files or click to choose — add multiple files for batch conversion'}
           </div>
         </div>
       ) : (
@@ -132,13 +156,19 @@ export function ConvertPage() {
           <div className="row-between mb-3">
             <h2 style={{ fontSize: 'var(--fs-lg)' }}>{zh ? '转换任务' : 'Conversion tasks'}</h2>
             <div className="row" style={{ gap: 'var(--sp-2)' }}>
-              <button className="btn btn-sm" onClick={() => void downloadAll()} disabled={!completedTasks.length}>
+              <button
+                className="btn btn-sm"
+                onClick={() => void downloadAll()}
+                disabled={!completedTasks.length}
+              >
                 <IconDownload size={13} /> {zh ? '全部下载' : 'Download all'}
               </button>
             </div>
           </div>
           <div className="col" style={{ gap: 'var(--sp-2)' }}>
-            {convertTasks.map((t) => <TaskRow key={t.id} task={t} />)}
+            {convertTasks.map((t) => (
+              <TaskRow key={t.id} task={t} />
+            ))}
           </div>
         </section>
       )}
@@ -167,7 +197,11 @@ export function ConvertPage() {
 }
 
 function FileRow({
-  file, tasks, onRemove, onEdit, onStart,
+  file,
+  tasks,
+  onRemove,
+  onEdit,
+  onStart,
 }: {
   file: SessionFile;
   tasks: SessionTask[];
@@ -177,6 +211,7 @@ function FileRow({
 }) {
   const lang = useI18n((s) => s.lang);
   const zh = lang !== 'en';
+  const t = useT();
   const p = file.probe;
   const latest = tasks[tasks.length - 1];
   const running = latest && ['queued', 'preparing', 'running', 'paused'].includes(latest.status);
@@ -184,10 +219,14 @@ function FileRow({
 
   return (
     <div className="file-row">
-      <div className="file-icon"><IconMusic size={19} /></div>
+      <div className="file-icon">
+        <IconMusic size={19} />
+      </div>
 
       <div className="grow" style={{ minWidth: 0 }}>
-        <div className="truncate bold small" title={file.source.name}>{file.source.name}</div>
+        <div className="truncate bold small" title={file.source.name}>
+          {file.source.name}
+        </div>
         <div className="file-meta">
           {file.probing ? (
             <span style={{ color: 'var(--accent)' }}>{zh ? '分析中…' : 'Analyzing…'}</span>
@@ -219,19 +258,50 @@ function FileRow({
       </span>
 
       {latest && (
-        <span className={`badge ${done ? 'badge-success' : running ? 'badge-accent' : latest.status === 'failed' ? 'badge-danger' : ''}`} style={{ flex: 'none', minWidth: 56, justifyContent: 'center' }}>
-          {done ? '100%' : running ? `${Math.round(latest.progress.ratio * 100)}%` : latest.status === 'failed' ? (zh ? '失败' : 'Fail') : ''}
+        <span
+          className={`badge ${done ? 'badge-success' : running ? 'badge-accent' : latest.status === 'failed' ? 'badge-danger' : ''}`}
+          style={{ flex: 'none', minWidth: 56, justifyContent: 'center' }}
+        >
+          {done
+            ? '100%'
+            : running
+              ? `${Math.round(latest.progress.ratio * 100)}%`
+              : latest.status === 'failed'
+                ? zh
+                  ? '失败'
+                  : 'Fail'
+                : ''}
         </span>
       )}
 
       <div className="row" style={{ gap: 4, flex: 'none' }}>
-        <button className="btn btn-sm" onClick={onEdit} title={zh ? '参数' : 'Params'}>
+        <button
+          className="btn btn-sm"
+          onClick={onEdit}
+          title={zh ? '参数' : 'Params'}
+          aria-label={t('aria.editParams')}
+        >
           <IconEdit size={13} />
         </button>
         <button className="btn btn-primary btn-sm" onClick={onStart} disabled={running}>
-          {running ? (zh ? '执行中' : 'Running') : <><IconPlay size={13} /> {zh ? '转换' : 'Convert'}</>}
+          {running ? (
+            zh ? (
+              '执行中'
+            ) : (
+              'Running'
+            )
+          ) : (
+            <>
+              <IconPlay size={13} /> {zh ? '转换' : 'Convert'}
+            </>
+          )}
         </button>
-        <button className="btn btn-ghost btn-icon btn-sm" onClick={onRemove} title={zh ? '移除' : 'Remove'}>
+        <button
+          className="btn btn-ghost btn-icon btn-sm"
+          onClick={onRemove}
+          title={zh ? '移除' : 'Remove'}
+          aria-label={t('common.remove')}
+        >
           <IconClose size={14} />
         </button>
       </div>
@@ -253,7 +323,10 @@ function FileDetail({ file }: { file: SessionFile }) {
         {p ? (
           <div className="kv">
             <dt>{zh ? '格式' : 'Format'}</dt>
-            <dd>{p.format?.toUpperCase() ?? p.container} · {p.codec}{p.codecLongName ? ` (${p.codecLongName})` : ''}</dd>
+            <dd>
+              {p.format?.toUpperCase() ?? p.container} · {p.codec}
+              {p.codecLongName ? ` (${p.codecLongName})` : ''}
+            </dd>
             <dt>{zh ? '时长' : 'Duration'}</dt>
             <dd className="mono">{fmtDuration(p.durationMs)}</dd>
             <dt>{zh ? '采样率' : 'Sample rate'}</dt>
@@ -263,7 +336,9 @@ function FileDetail({ file }: { file: SessionFile }) {
             {p.bitDepth !== undefined && (
               <>
                 <dt>{zh ? '位深度' : 'Bit depth'}</dt>
-                <dd className="mono">{p.bitDepth === 'f32' ? '32-bit Float' : `${p.bitDepth}-bit`}</dd>
+                <dd className="mono">
+                  {p.bitDepth === 'f32' ? '32-bit Float' : `${p.bitDepth}-bit`}
+                </dd>
               </>
             )}
             <dt>{zh ? '码率' : 'Bitrate'}</dt>
@@ -274,7 +349,10 @@ function FileDetail({ file }: { file: SessionFile }) {
         ) : file.probeError ? (
           <div className="callout danger">{file.probeError}</div>
         ) : (
-          <div className="row"><span className="spinner" /> <span className="small muted">{zh ? '分析中…' : 'Analyzing…'}</span></div>
+          <div className="row">
+            <span className="spinner" />{' '}
+            <span className="small muted">{zh ? '分析中…' : 'Analyzing…'}</span>
+          </div>
         )}
       </div>
 

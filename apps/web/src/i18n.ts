@@ -75,7 +75,8 @@ const zh = {
 
   // 首页
   'home.greeting': '把声音，变成你需要的样子',
-  'home.desc': 'MP3 / WAV / FLAC / AAC / OGG / OPUS 等 13 种格式互转，剪辑、合并、分析与元数据编辑。所有处理均在本地完成，音频不会上传。',
+  'home.desc':
+    'MP3 / WAV / FLAC / AAC / OGG / OPUS 等 13 种格式互转，剪辑、合并、分析与元数据编辑。所有处理均在本地完成，音频不会上传。',
   'home.dropHint': '拖入音频文件，或点击选择',
   'home.dropSub': '支持多选 · 批量转换 · 拖入文件夹',
   'home.quickStart': '快速开始',
@@ -283,11 +284,44 @@ const zh = {
   'settings.about': '关于',
   'settings.version': '版本',
   'settings.privacy': '隐私说明',
-  'settings.privacyText': 'Audio Studio 在浏览器本地处理所有音频文件，不会将任何音频数据上传到服务器。历史记录与设置仅保存在本机浏览器存储中。',
+  'settings.privacyText':
+    'Audio Studio 在浏览器本地处理所有音频文件，不会将任何音频数据上传到服务器。历史记录与设置仅保存在本机浏览器存储中。',
   'settings.licenses': '开源许可证',
-  'settings.licensesText': 'FFmpeg (LGPL-2.1-or-later / GPL-2.0-or-later) · React (MIT) · Vite (MIT) · zustand (MIT) · idb (ISC) · @ffmpeg/ffmpeg (LGPL-3.0-or-later)',
+  'settings.licensesText':
+    'FFmpeg (LGPL-2.1-or-later / GPL-2.0-or-later) · React (MIT) · Vite (MIT) · zustand (MIT) · idb (ISC) · @ffmpeg/ffmpeg (LGPL-3.0-or-later)',
   'settings.resetDefaults': '恢复默认设置',
   'settings.dangerZone': '危险操作',
+  'updates.title': '版本更新',
+  'updates.description': '检查 GitHub Releases 中是否有新版，并查看更新日志。',
+  'updates.autoCheck': '自动检查更新',
+  'updates.autoCheckHint':
+    '应用运行期间最多每 24 小时检查一次；检查到新版本后会提示，不会自动安装。',
+  'updates.checkNow': '立即检查',
+  'updates.checking': '正在检查…',
+  'updates.available': '发现新版本 {version}',
+  'updates.openReleaseHint': '打开版本页面查看更新说明和下载。',
+  'updates.current': '当前已是最新版本',
+  'updates.checkFailed': '暂时无法检查更新，请检查网络后重试。',
+  'updates.latestVersion': '最新版本',
+  'updates.publishedAt': '发布时间',
+  'updates.justNow': '刚刚',
+  'updates.releaseNotes': '更新日志',
+  'updates.assets': '发布文件',
+  'updates.noReleaseNotes': '此版本没有提供更新日志。',
+  'updates.openRelease': '查看版本与下载',
+  'updates.repository': '项目仓库',
+  'updates.lastChecked': '上次检查',
+  'updates.neverChecked': '尚未检查',
+  'updates.installNow': '立即更新',
+  'updates.later': '稍后提醒',
+  'updates.installing': '正在更新…',
+  'updates.downloading': '正在下载并安装桌面更新…',
+  'updates.refreshing': '正在加载最新网页资源…',
+  'updates.keepOpen': '请保持应用打开，完成后会自动重启或刷新。',
+  'updates.installFailed': '更新失败，请稍后重试。',
+  'updates.desktopInstallHint': '桌面版会下载签名安装包，安装完成后自动重启并打开新版本。',
+  'updates.webRefreshHint': '网页无法替换服务器文件；发布完成后会自动切换到最新资源并刷新页面。',
+  'updates.availableBadge': '可更新',
 
   // 播放器
   'player.play': '播放',
@@ -303,6 +337,15 @@ const zh = {
   'player.playlist': '播放列表',
   'player.empty': '播放列表为空',
   'player.waveformLoading': '波形生成中…',
+  'player.unmute': '取消静音',
+
+  // 无障碍（图标按钮 / 地标）
+  'aria.menu': '打开菜单',
+  'aria.closeMenu': '关闭菜单',
+  'aria.mainNav': '主导航',
+  'aria.language': '切换语言',
+  'aria.toggleTheme': '切换主题',
+  'aria.editParams': '编辑参数',
 
   // 引擎 / 状态栏
   'engine.initializing': '引擎初始化中…',
@@ -390,7 +433,8 @@ const en: Record<keyof Dict, string> = {
   'status.cancelled': 'Cancelled',
 
   'home.greeting': 'Shape your sound, your way',
-  'home.desc': 'Convert between 13 formats incl. MP3 / WAV / FLAC / AAC / OGG / OPUS, plus clipping, merging, analysis and metadata editing. Everything runs locally — audio never leaves your device.',
+  'home.desc':
+    'Convert between 13 formats incl. MP3 / WAV / FLAC / AAC / OGG / OPUS, plus clipping, merging, analysis and metadata editing. Everything runs locally — audio never leaves your device.',
   'home.dropHint': 'Drop audio files here, or click to choose',
   'home.dropSub': 'Multi-select · Batch convert · Folder drop',
   'home.quickStart': 'Quick start',
@@ -416,7 +460,8 @@ const en: Record<keyof Dict, string> = {
   'convert.downloadAll': 'Download all',
   'convert.clearAll': 'Clear list',
   'convert.emptyList': 'No files added yet',
-  'convert.emptyListDesc': 'Drop files or click to choose — add multiple files for batch conversion',
+  'convert.emptyListDesc':
+    'Drop files or click to choose — add multiple files for batch conversion',
   'convert.removeFile': 'Remove file',
   'convert.estimateWarn': 'Resource check',
   'convert.probing': 'Analyzing…',
@@ -589,11 +634,46 @@ const en: Record<keyof Dict, string> = {
   'settings.about': 'About',
   'settings.version': 'Version',
   'settings.privacy': 'Privacy',
-  'settings.privacyText': 'Audio Studio processes all audio locally in your browser. No audio data is ever uploaded. History and settings live only in your browser storage.',
+  'settings.privacyText':
+    'Audio Studio processes all audio locally in your browser. No audio data is ever uploaded. History and settings live only in your browser storage.',
   'settings.licenses': 'Open-source licenses',
-  'settings.licensesText': 'FFmpeg (LGPL-2.1-or-later / GPL-2.0-or-later) · React (MIT) · Vite (MIT) · zustand (MIT) · idb (ISC) · @ffmpeg/ffmpeg (LGPL-3.0-or-later)',
+  'settings.licensesText':
+    'FFmpeg (LGPL-2.1-or-later / GPL-2.0-or-later) · React (MIT) · Vite (MIT) · zustand (MIT) · idb (ISC) · @ffmpeg/ffmpeg (LGPL-3.0-or-later)',
   'settings.resetDefaults': 'Reset to defaults',
   'settings.dangerZone': 'Danger zone',
+  'updates.title': 'Updates',
+  'updates.description': 'Check GitHub Releases for a newer version and read its release notes.',
+  'updates.autoCheck': 'Check for updates automatically',
+  'updates.autoCheckHint':
+    'Checks at most once every 24 hours while the app is running. You will be notified about updates; they are not installed automatically.',
+  'updates.checkNow': 'Check now',
+  'updates.checking': 'Checking…',
+  'updates.available': 'Version {version} is available',
+  'updates.openReleaseHint': 'Open the release page to read the notes and download it.',
+  'updates.current': 'You are using the latest version',
+  'updates.checkFailed': 'Could not check for updates. Check your connection and try again.',
+  'updates.latestVersion': 'Latest version',
+  'updates.publishedAt': 'Published',
+  'updates.justNow': 'Just now',
+  'updates.releaseNotes': 'Release notes',
+  'updates.assets': 'Release files',
+  'updates.noReleaseNotes': 'No release notes were provided.',
+  'updates.openRelease': 'View release and downloads',
+  'updates.repository': 'Source repository',
+  'updates.lastChecked': 'Last checked',
+  'updates.neverChecked': 'Not checked yet',
+  'updates.installNow': 'Install now',
+  'updates.later': 'Remind me later',
+  'updates.installing': 'Updating…',
+  'updates.downloading': 'Downloading and installing the desktop update…',
+  'updates.refreshing': 'Loading the latest web resources…',
+  'updates.keepOpen': 'Keep the app open. It will restart or refresh when finished.',
+  'updates.installFailed': 'Update failed. Please try again later.',
+  'updates.desktopInstallHint':
+    'The desktop app downloads a signed installer, then restarts and opens the new version automatically.',
+  'updates.webRefreshHint':
+    'A web app cannot replace server files. Once deployment is complete, it switches to the latest resources and refreshes.',
+  'updates.availableBadge': 'Update available',
 
   'player.play': 'Play',
   'player.pause': 'Pause',
@@ -608,6 +688,14 @@ const en: Record<keyof Dict, string> = {
   'player.playlist': 'Playlist',
   'player.empty': 'Playlist is empty',
   'player.waveformLoading': 'Generating waveform…',
+  'player.unmute': 'Unmute',
+
+  'aria.menu': 'Open menu',
+  'aria.closeMenu': 'Close menu',
+  'aria.mainNav': 'Main navigation',
+  'aria.language': 'Switch language',
+  'aria.toggleTheme': 'Toggle theme',
+  'aria.editParams': 'Edit parameters',
 
   'engine.initializing': 'Engine initializing…',
   'engine.ready': 'Engine ready',
@@ -634,16 +722,22 @@ interface I18nState {
   setLang: (lang: Lang) => void;
 }
 
-export const useI18n = create<I18nState>()(persist(
-  (set) => ({
-    lang: 'zh',
-    setLang: (lang) => set({ lang }),
-  }),
-  { name: 'as-lang' },
-));
+export const useI18n = create<I18nState>()(
+  persist(
+    (set) => ({
+      lang: 'zh',
+      setLang: (lang) => set({ lang }),
+    }),
+    { name: 'as-lang' },
+  ),
+);
 
 /** 获取翻译函数（组件内用 useT()） */
-export function translate(lang: Lang, key: keyof Dict, vars?: Record<string, string | number>): string {
+export function translate(
+  lang: Lang,
+  key: keyof Dict,
+  vars?: Record<string, string | number>,
+): string {
   let s = DICTS[lang][key] ?? (zh as Record<string, string>)[key] ?? String(key);
   if (vars) {
     for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, String(v));

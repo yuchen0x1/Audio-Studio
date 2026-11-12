@@ -3,8 +3,15 @@
  * 与队列作业一致：真实进度回调、状态机合法转移、历史记录落库。
  */
 import {
-  createTask, transition, applyProgress, type AudioJob, type JobResult,
-  type TaskProgress, type TaskStatus, makeEngineError, EngineError,
+  createTask,
+  transition,
+  applyProgress,
+  type AudioJob,
+  type JobResult,
+  type TaskProgress,
+  type TaskStatus,
+  makeEngineError,
+  EngineError,
 } from '@audio-studio/shared';
 import { getEngine } from './index';
 import { useHistory, type HistoryRecord } from '../stores/history';
@@ -86,18 +93,27 @@ export async function runAdhoc(opts: RunAdhocOptions): Promise<JobResult | null>
     toast.success(opts.historyKind === 'trim' ? '剪辑完成' : '合并完成', result.fileName);
     return result;
   } catch (e) {
-    const err = e instanceof EngineError
-      ? { code: e.code, message: e.message }
-      : { code: 'E_UNKNOWN', message: e instanceof Error ? e.message : String(e) };
+    const err =
+      e instanceof EngineError
+        ? { code: e.code, message: e.message }
+        : { code: 'E_UNKNOWN', message: e instanceof Error ? e.message : String(e) };
 
     if (err.code === 'E_CANCELLED') {
-      try { setStatus('cancelled'); } catch { /* 状态可能已转移 */ }
+      try {
+        setStatus('cancelled');
+      } catch {
+        /* 状态可能已转移 */
+      }
       state.finishedAt = Date.now();
       emit();
       return null;
     }
 
-    try { setStatus('failed'); } catch { /* ignore */ }
+    try {
+      setStatus('failed');
+    } catch {
+      /* ignore */
+    }
     state.error = err;
     state.finishedAt = Date.now();
     emit();
@@ -126,7 +142,9 @@ export async function runAdhoc(opts: RunAdhocOptions): Promise<JobResult | null>
 export async function cancelAdhoc(taskId: string): Promise<void> {
   try {
     await getEngine().cancel(taskId);
-  } catch { /* 忽略 */ }
+  } catch {
+    /* 忽略 */
+  }
 }
 
 async function ensureEngine() {

@@ -31,7 +31,7 @@ private fun num(v: Double): String = String.format(java.util.Locale.US, "%.2f", 
 data class SelectedEncoder(val encoder: String, val explicit: Boolean)
 
 fun selectEncoder(formatId: String, params: EncodeParams): SelectedEncoder {
-    val f = Formats.get(formatId) ?: error("未知目标格式: $formatId")
+    val f = Formats.get(formatId) ?: error("unknown target format: $formatId")
     params.encoder?.let { return SelectedEncoder(it, true) }
     val byDepth: Map<String, Map<String, String>> = mapOf(
         "wav" to mapOf("16" to "pcm_s16le", "24" to "pcm_s24le", "32" to "pcm_s32le", "f32" to "pcm_f32le"),
@@ -60,7 +60,7 @@ fun buildAudioFilters(params: EncodeParams, ctx: BuildContext): List<String> {
     }
     if (fadeOut > 0) {
         val dur = ctx.durationMs
-            ?: throw IllegalArgumentException("淡出需要源时长信息（缺少 durationMs）")
+            ?: throw IllegalArgumentException("fade-out requires source duration (missing durationMs)")
         val start = max(0.0, (dur - fadeOut) / 1000.0)
         filters.add("afade=t=out:st=${String.format(java.util.Locale.US, "%.3f", start)}:d=${sec(fadeOut.toLong())}")
     }
@@ -129,7 +129,7 @@ private fun outputTail(params: EncodeParams, f: FormatDef, ctx: BuildContext, fi
 
 /** 转换作业 → FFmpeg 参数向量 */
 fun buildConvertArgs(sourcePath: String, params: EncodeParams, outputDir: String, outputFileName: String, ctx: BuildContext = BuildContext()): List<String> {
-    val f = Formats.get(params.format) ?: error("未知目标格式: ${params.format}")
+    val f = Formats.get(params.format) ?: error("unknown target format: ${params.format}")
     assertSafeArg(sourcePath, 0, "path")
     val out = "$outputDir/$outputFileName"
     assertSafeArg(out, 1, "path")
@@ -146,13 +146,13 @@ fun buildConvertArgs(sourcePath: String, params: EncodeParams, outputDir: String
 
 /** 裁剪作业 → FFmpeg 参数向量（输出侧 -ss/-t，采样级精确） */
 fun buildTrimArgs(sourcePath: String, startMs: Long, endMs: Long, params: EncodeParams, outputDir: String, outputFileName: String, ctx: BuildContext = BuildContext()): List<String> {
-    val f = Formats.get(params.format) ?: error("未知目标格式: ${params.format}")
+    val f = Formats.get(params.format) ?: error("unknown target format: ${params.format}")
     assertSafeArg(sourcePath, 0, "path")
     val out = "$outputDir/$outputFileName"
     assertSafeArg(out, 1, "path")
 
     val s = max(0L, startMs)
-    if (endMs <= s) throw IllegalArgumentException("裁剪区间无效：结束时间必须大于开始时间")
+    if (endMs <= s) throw IllegalArgumentException("invalid trim range: end must be greater than start")
     val durationMs = endMs - s
 
     // 淡入淡出以裁剪后的区间为基准
@@ -178,8 +178,8 @@ data class MergeItemArgs(
 
 /** 合并作业 → FFmpeg 参数向量（concat 滤镜 + 间隔静音 + 每段增益/淡化） */
 fun buildMergeArgs(items: List<MergeItemArgs>, gapMs: Int, params: EncodeParams, outputDir: String, outputFileName: String, ctx: BuildContext = BuildContext()): List<String> {
-    val f = Formats.get(params.format) ?: error("未知目标格式: ${params.format}")
-    require(items.isNotEmpty()) { "合并至少需要一个输入" }
+    val f = Formats.get(params.format) ?: error("unknown target format: ${params.format}")
+    require(items.isNotEmpty()) { "merge requires at least one input" }
 
     val rate = (ctx.resolvedSampleRate ?: params.sampleRate).takeIf { it != 0 } ?: 44100
     val ch = (ctx.resolvedChannels ?: params.channels).takeIf { it != 0 } ?: 2

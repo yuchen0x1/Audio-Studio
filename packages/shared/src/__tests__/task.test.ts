@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  canTransition, transition, isTerminal, createTask,
-  applyProgress, newTaskProgress, STATUS_LABELS,
+  canTransition,
+  transition,
+  isTerminal,
+  createTask,
+  applyProgress,
+  newTaskProgress,
+  STATUS_LABELS,
 } from '../task';
 
 describe('任务状态机', () => {

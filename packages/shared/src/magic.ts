@@ -26,7 +26,9 @@ function matchesPrefix(bytes: Uint8Array, sig: number[], offset = 0): boolean {
   return true;
 }
 
-const ASF_GUID = [0x30, 0x26, 0xb2, 0x75, 0x8e, 0x66, 0xcf, 0x11, 0xa6, 0xd9, 0x00, 0xaa, 0x00, 0x62, 0xce, 0x6c];
+const ASF_GUID = [
+  0x30, 0x26, 0xb2, 0x75, 0x8e, 0x66, 0xcf, 0x11, 0xa6, 0xd9, 0x00, 0xaa, 0x00, 0x62, 0xce, 0x6c,
+];
 
 /** 检测文件头字节（至少传入前 64KB 更可靠） */
 export function detectFormat(bytes: Uint8Array): MagicDetection {
@@ -43,10 +45,14 @@ export function detectFormat(bytes: Uint8Array): MagicDetection {
   // OggS
   if (ascii(bytes, 0, 4) === 'OggS') {
     const head = ascii(bytes, 0, Math.min(64, bytes.length));
-    if (head.includes('OpusHead')) return { format: 'opus', container: 'ogg', codecHint: 'opus', confidence: 'certain' };
-    if (head.includes('vorbis')) return { format: 'ogg', container: 'ogg', codecHint: 'vorbis', confidence: 'certain' };
-    if (head.includes('FLAC')) return { format: 'flac', container: 'ogg', codecHint: 'flac', confidence: 'likely' };
-    if (head.includes('Speex')) return { format: null, container: 'ogg', codecHint: 'speex', confidence: 'likely' };
+    if (head.includes('OpusHead'))
+      return { format: 'opus', container: 'ogg', codecHint: 'opus', confidence: 'certain' };
+    if (head.includes('vorbis'))
+      return { format: 'ogg', container: 'ogg', codecHint: 'vorbis', confidence: 'certain' };
+    if (head.includes('FLAC'))
+      return { format: 'flac', container: 'ogg', codecHint: 'flac', confidence: 'likely' };
+    if (head.includes('Speex'))
+      return { format: null, container: 'ogg', codecHint: 'speex', confidence: 'likely' };
     return { format: 'ogg', container: 'ogg', confidence: 'likely' };
   }
   // ID3 / MP3 frame sync
@@ -67,13 +73,24 @@ export function detectFormat(bytes: Uint8Array): MagicDetection {
     const brandRaw = ascii(bytes, 8, 4);
     const brand = brandRaw.trim();
     // 用 brand 粗分音频/视频容器；真正的流信息需要 probe 确认
-    if (['M4A', 'M4B', 'M4P', 'F4A', 'M4A', 'ALAC', 'mp42'].includes(brandRaw) || ['M4A', 'M4B', 'M4P', 'F4A', 'ALAC'].includes(brand)) {
-      return { format: 'm4a', container: 'mp4', codecHint: brand === 'ALAC' ? 'alac' : undefined, confidence: 'certain' };
+    if (
+      ['M4A', 'M4B', 'M4P', 'F4A', 'M4A', 'ALAC', 'mp42'].includes(brandRaw) ||
+      ['M4A', 'M4B', 'M4P', 'F4A', 'ALAC'].includes(brand)
+    ) {
+      return {
+        format: 'm4a',
+        container: 'mp4',
+        codecHint: brand === 'ALAC' ? 'alac' : undefined,
+        confidence: 'certain',
+      };
     }
     return { format: 'm4a', container: 'mp4', codecHint: `brand:${brand}`, confidence: 'likely' };
   }
   // AIFF: FORM .... AIFF
-  if (ascii(bytes, 0, 4) === 'FORM' && (ascii(bytes, 8, 4) === 'AIFF' || ascii(bytes, 8, 4) === 'AIFC')) {
+  if (
+    ascii(bytes, 0, 4) === 'FORM' &&
+    (ascii(bytes, 8, 4) === 'AIFF' || ascii(bytes, 8, 4) === 'AIFC')
+  ) {
     return { format: 'aiff', container: 'aiff', confidence: 'certain' };
   }
   // APE: 'MAC '
@@ -110,11 +127,23 @@ export function detectFormat(bytes: Uint8Array): MagicDetection {
 /** 扩展名（不含点，小写）→ 期望格式，用于与 magic 结果比对 */
 export function expectedFormatForExt(ext: string): FormatId | null {
   const map: Record<string, FormatId> = {
-    mp3: 'mp3', wav: 'wav', wave: 'wav', flac: 'flac',
-    aac: 'aac', m4a: 'm4a', m4b: 'm4a', mp4: 'm4a',
-    ogg: 'ogg', oga: 'ogg', opus: 'opus',
-    wma: 'wma', aiff: 'aiff', aif: 'aiff',
-    ape: 'ape', ac3: 'ac3', amr: 'amr',
+    mp3: 'mp3',
+    wav: 'wav',
+    wave: 'wav',
+    flac: 'flac',
+    aac: 'aac',
+    m4a: 'm4a',
+    m4b: 'm4a',
+    mp4: 'm4a',
+    ogg: 'ogg',
+    oga: 'ogg',
+    opus: 'opus',
+    wma: 'wma',
+    aiff: 'aiff',
+    aif: 'aiff',
+    ape: 'ape',
+    ac3: 'ac3',
+    amr: 'amr',
   };
   return map[ext.toLowerCase()] ?? null;
 }

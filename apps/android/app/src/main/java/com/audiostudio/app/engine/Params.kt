@@ -1,5 +1,9 @@
 package com.audiostudio.app.engine
 
+import android.content.Context
+import androidx.annotation.StringRes
+import com.audiostudio.app.R
+
 /**
  * 编码参数模型 —— 与 packages/shared/src/params.ts 语义一致的 Kotlin 移植。
  */
@@ -55,7 +59,7 @@ fun paramAvailability(formatId: String): ParamAvailability {
 
 /** 生成目标格式的默认参数：尽可能保持源参数，只做必要约束 */
 fun defaultParamsFor(formatId: String, template: String = DEFAULT_FILENAME_TEMPLATE): EncodeParams {
-    val f = Formats.get(formatId) ?: error("未知目标格式: $formatId")
+    val f = Formats.get(formatId) ?: error("unknown target format: $formatId")
     val builder = EncodeParams(format = formatId, filenameTemplate = template)
     return builder.copy(
         bitrateKbps = if (f.supportsBitrate) f.defaultBitrateKbps else null,
@@ -72,41 +76,47 @@ fun closestNumber(list: List<Int>, target: Int): Int {
     return list.minByOrNull { kotlin.math.abs(it - target) } ?: list.first()
 }
 
-/** 参数合法性校验（引擎入口强制执行），返回中文错误列表 */
-fun validateParams(params: EncodeParams): List<String> {
-    val errors = mutableListOf<String>()
+/** 参数校验错误：携带字符串资源与占位符参数，在 UI/Context 边界本地化解析 */
+data class ParamError(@StringRes val resId: Int, val args: List<Any> = emptyList()) {
+    fun resolve(context: Context): String =
+        if (args.isEmpty()) context.getString(resId) else context.getString(resId, *args.toTypedArray())
+}
+
+/** 参数合法性校验（引擎入口强制执行），返回可本地化的错误列表 */
+fun validateParams(params: EncodeParams): List<ParamError> {
+    val errors = mutableListOf<ParamError>()
     val f = Formats.get(params.format)
     if (f == null) {
-        errors.add("不支持的目标格式: ${params.format}")
+        errors.add(ParamError(R.string.error_param_format, listOf(params.format)))
         return errors
     }
     if (f.supportsBitrate) {
         val opts = f.bitrateOptionsKbps
         val br = params.bitrateKbps
         if (br != null && !opts.isNullOrEmpty() && br !in opts) {
-            errors.add("比特率 ${br}kbps 不在 ${f.label} 支持范围内")
+            errors.add(ParamError(R.string.error_param_bitrate, listOf(br, f.label)))
         }
     }
     if (params.sampleRate != 0 && params.sampleRate !in f.sampleRates) {
-        errors.add("采样率 ${params.sampleRate}Hz 不受 ${f.label} 支持")
+        errors.add(ParamError(R.string.error_param_sample_rate, listOf(params.sampleRate, f.label)))
     }
     if (params.channels != 0 && params.channels !in f.channels) {
-        errors.add("声道数 ${params.channels} 不受 ${f.label} 支持")
+        errors.add(ParamError(R.string.error_param_channels, listOf(params.channels, f.label)))
     }
     if (f.supportsBitDepth && params.bitDepth != null) {
         val bds = f.bitDepths
         if (bds != null && params.bitDepth !in bds) {
-            errors.add("位深度 ${params.bitDepth} 不受 ${f.label} 支持")
+            errors.add(ParamError(R.string.error_param_bit_depth, listOf(params.bitDepth.toString(), f.label)))
         }
     }
     if (params.gainDb < -60 || params.gainDb > 20) {
-        errors.add("音量增益需在 -60 ~ +20 dB 之间")
+        errors.add(ParamError(R.string.error_param_gain))
     }
     if (params.fadeInMs < 0 || params.fadeOutMs < 0) {
-        errors.add("淡入淡出时长不能为负数")
+        errors.add(ParamError(R.string.error_param_fade))
     }
     if (params.bitrateKbps != null && params.bitrateKbps <= 0) {
-        errors.add("比特率必须大于 0")
+        errors.add(ParamError(R.string.error_param_bitrate_positive))
     }
     return errors
 }

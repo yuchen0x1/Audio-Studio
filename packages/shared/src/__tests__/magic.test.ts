@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { detectFormat, expectedFormatForExt } from '../magic';
-import { sanitizeFileName, isPathUnsafe, isOutputNameSafe, validateFilenameTemplate, checkSizeLimit, WEB_SIZE_LIMIT, estimateWasmPeakBytes } from '../validation';
+import {
+  sanitizeFileName,
+  isPathUnsafe,
+  isOutputNameSafe,
+  validateFilenameTemplate,
+  checkSizeLimit,
+  WEB_SIZE_LIMIT,
+  estimateWasmPeakBytes,
+} from '../validation';
 import { buildOutputFileName, applyTemplate } from '../naming';
 import { FORMATS } from '../formats';
 import { classifyEngineOutput, makeEngineError } from '../errors';
@@ -68,7 +76,10 @@ describe('magic bytes 格式检测', () => {
     expect(detectFormat(withAscii('#!AMR\n')).format).toBe('amr');
   });
   it('ASF GUID → wma', () => {
-    const guid = [0x30, 0x26, 0xb2, 0x75, 0x8e, 0x66, 0xcf, 0x11, 0xa6, 0xd9, 0x00, 0xaa, 0x00, 0x62, 0xce, 0x6c];
+    const guid = [
+      0x30, 0x26, 0xb2, 0x75, 0x8e, 0x66, 0xcf, 0x11, 0xa6, 0xd9, 0x00, 0xaa, 0x00, 0x62, 0xce,
+      0x6c,
+    ];
     expect(detectFormat(bytes(...guid, 0, 0, 0, 0)).format).toBe('wma');
   });
   it('未知数据 → null', () => {
@@ -134,13 +145,17 @@ describe('文件名模板', () => {
   const now = new Date(2026, 10, 8, 14, 5, 3);
   it('token 替换', () => {
     const name = applyTemplate('{name}_{format}_{date}_{time}', {
-      sourceName: '现场录音', format: FORMATS.mp3, now,
+      sourceName: '现场录音',
+      format: FORMATS.mp3,
+      now,
     });
     expect(name).toBe('现场录音_mp3_20261108_140503');
   });
   it('索引与元数据 token', () => {
     const name = applyTemplate('{index}_{artist} - {title}', {
-      sourceName: 'x', format: FORMATS.mp3, index: 3,
+      sourceName: 'x',
+      format: FORMATS.mp3,
+      index: 3,
       tags: { artist: '坂本龍一', title: 'Energy Flow' },
     });
     expect(name).toBe('3_坂本龍一 - Energy Flow');
@@ -179,18 +194,25 @@ describe('错误分类', () => {
 
 describe('多片段裁剪展开', () => {
   const base: TrimJob = {
-    kind: 'trim', taskId: 'seg',
+    kind: 'trim',
+    taskId: 'seg',
     source: { id: 's', name: 'a.mp3', sizeBytes: 1 },
-    startMs: 1000, endMs: 10000,
+    startMs: 1000,
+    endMs: 10000,
     splitPointsMs: [4000, 7000],
     exportSegments: true,
     params: defaultParamsFor('mp3'),
-    outputFileName: 'part.mp3', outputDir: 'o',
+    outputFileName: 'part.mp3',
+    outputDir: 'o',
   };
   it('按分割点展开为独立作业', () => {
     const jobs = expandJob(base) as TrimJob[];
     expect(jobs).toHaveLength(3);
-    expect(jobs.map((j) => [j.startMs, j.endMs])).toEqual([[1000, 4000], [4000, 7000], [7000, 10000]]);
+    expect(jobs.map((j) => [j.startMs, j.endMs])).toEqual([
+      [1000, 4000],
+      [4000, 7000],
+      [7000, 10000],
+    ]);
     expect(jobs[0].outputFileName).toBe('part_seg01.mp3');
     expect(jobs[2].outputFileName).toBe('part_seg03.mp3');
     expect(jobs[0].taskId).not.toBe(jobs[1].taskId);

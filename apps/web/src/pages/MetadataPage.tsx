@@ -5,7 +5,7 @@
  * 桌面：invoke('start_task', { taskId, args, outputPath })，监听 task://done / task://error，
  *       完成后 revealOutput。桌面端无法写入临时封面文件，故上传封面在桌面禁用（保留/移除原封面可用）。
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { cloneElement, isValidElement, useCallback, useId, useMemo, useRef, useState } from 'react';
 import type { AudioSource, FormatId, ProbeResult } from '@audio-studio/shared';
 import { FORMATS, buildOutputFileName } from '@audio-studio/shared';
 import { useI18n, useT } from '../i18n';
@@ -35,7 +35,13 @@ interface FormState {
 }
 
 const EMPTY_FORM: FormState = {
-  title: '', artist: '', album: '', year: '', genre: '', track: '', comment: '',
+  title: '',
+  artist: '',
+  album: '',
+  year: '',
+  genre: '',
+  track: '',
+  comment: '',
 };
 
 interface PickState {
@@ -50,7 +56,12 @@ export function MetadataPage() {
   const lang = useI18n((s) => s.lang);
   const S = lang === 'en' ? EN : ZH;
 
-  const [pick, setPick] = useState<PickState>({ source: null, probe: null, probing: false, error: null });
+  const [pick, setPick] = useState<PickState>({
+    source: null,
+    probe: null,
+    probing: false,
+    error: null,
+  });
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [cover, setCover] = useState<CoverState>({ kind: 'none' });
   const [saving, setSaving] = useState(false);
@@ -78,15 +89,20 @@ export function MetadataPage() {
     } catch (e) {
       if (seq !== reqSeq.current) return;
       setPick({
-        source: src, probe: null, probing: false,
+        source: src,
+        probe: null,
+        probing: false,
         error: e instanceof Error ? e.message : String(e),
       });
     }
   }, []);
 
-  const onFiles = useCallback((sources: AudioSource[]) => {
-    if (sources[0]) void runProbe(sources[0]);
-  }, [runProbe]);
+  const onFiles = useCallback(
+    (sources: AudioSource[]) => {
+      if (sources[0]) void runProbe(sources[0]);
+    },
+    [runProbe],
+  );
 
   const pickFile = useCallback(async () => {
     const sources = await pickAudioFiles(false);
@@ -104,28 +120,31 @@ export function MetadataPage() {
     });
   }, [source, def, probe]);
 
-  const set = (key: keyof FormState) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const set =
+    (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const onCoverFile = useCallback((file: File) => {
-    if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
-      toast.warning(S.badCoverType, S.badCoverTypeHint);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result ?? '');
-      const bytes = dataUrlToBytes(dataUrl);
-      if (!bytes) {
-        toast.error(S.badCoverType, S.badCoverTypeHint);
+  const onCoverFile = useCallback(
+    (file: File) => {
+      if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
+        toast.warning(S.badCoverType, S.badCoverTypeHint);
         return;
       }
-      setCover({ kind: 'custom', dataUrl, bytes, mime: file.type });
-    };
-    reader.onerror = () => toast.error(S.badCoverType, S.badCoverTypeHint);
-    reader.readAsDataURL(file);
-  }, [S]);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = String(reader.result ?? '');
+        const bytes = dataUrlToBytes(dataUrl);
+        if (!bytes) {
+          toast.error(S.badCoverType, S.badCoverTypeHint);
+          return;
+        }
+        setCover({ kind: 'custom', dataUrl, bytes, mime: file.type });
+      };
+      reader.onerror = () => toast.error(S.badCoverType, S.badCoverTypeHint);
+      reader.readAsDataURL(file);
+    },
+    [S],
+  );
 
   const save = useCallback(async () => {
     if (!source || !probe || !def || !editable || saving) return;
@@ -133,6 +152,7 @@ export function MetadataPage() {
 
     const pairs: Array<[string, string]> = [];
     const add = (k: string, v: string) => {
+      // eslint-disable-next-line no-control-regex
       const s = v.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
       if (s) pairs.push([k, s]);
     };
@@ -189,7 +209,9 @@ export function MetadataPage() {
           <div className="card">
             <div className="row-between" style={{ flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
               <div className="row" style={{ minWidth: 0 }}>
-                <strong className="truncate" title={source.name}>{source.name}</strong>
+                <strong className="truncate" title={source.name}>
+                  {source.name}
+                </strong>
                 {def && <span className="badge badge-accent">{def.label}</span>}
                 <span className="badge">
                   {t('meta.tagSystem')}: <b style={{ marginLeft: 4 }}>{tagSystem}</b>
@@ -213,7 +235,9 @@ export function MetadataPage() {
               <IconWarning size={16} />
               <div className="grow">
                 <strong>{S.probeFailed}</strong>
-                <div className="xs mono" style={{ wordBreak: 'break-all' }}>{error}</div>
+                <div className="xs mono" style={{ wordBreak: 'break-all' }}>
+                  {error}
+                </div>
                 <button className="btn btn-sm mt-2" onClick={() => void runProbe(source)}>
                   {t('common.retry')}
                 </button>
@@ -226,9 +250,7 @@ export function MetadataPage() {
               {!editable && (
                 <div className="callout warning">
                   <IconWarning size={16} />
-                  <span>
-                    {def ? t('meta.notSupported') : S.unknownFormat}
-                  </span>
+                  <span>{def ? t('meta.notSupported') : S.unknownFormat}</span>
                 </div>
               )}
 
@@ -249,22 +271,54 @@ export function MetadataPage() {
                   }}
                 >
                   <Field label={t('meta.titleField')}>
-                    <input className="input" value={form.title} disabled={!editable || saving} onChange={set('title')} />
+                    <input
+                      className="input"
+                      value={form.title}
+                      disabled={!editable || saving}
+                      onChange={set('title')}
+                    />
                   </Field>
                   <Field label={t('meta.artist')}>
-                    <input className="input" value={form.artist} disabled={!editable || saving} onChange={set('artist')} />
+                    <input
+                      className="input"
+                      value={form.artist}
+                      disabled={!editable || saving}
+                      onChange={set('artist')}
+                    />
                   </Field>
                   <Field label={t('meta.album')}>
-                    <input className="input" value={form.album} disabled={!editable || saving} onChange={set('album')} />
+                    <input
+                      className="input"
+                      value={form.album}
+                      disabled={!editable || saving}
+                      onChange={set('album')}
+                    />
                   </Field>
                   <Field label={t('meta.year')}>
-                    <input className="input" value={form.year} disabled={!editable || saving} onChange={set('year')} placeholder="2024" />
+                    <input
+                      className="input"
+                      value={form.year}
+                      disabled={!editable || saving}
+                      onChange={set('year')}
+                      placeholder="2024"
+                    />
                   </Field>
                   <Field label={t('meta.genre')}>
-                    <input className="input" value={form.genre} disabled={!editable || saving} onChange={set('genre')} />
+                    <input
+                      className="input"
+                      value={form.genre}
+                      disabled={!editable || saving}
+                      onChange={set('genre')}
+                    />
                   </Field>
                   <Field label={t('meta.track')}>
-                    <input className="input" value={form.track} disabled={!editable || saving} onChange={set('track')} placeholder="1/12" />
+                    <input
+                      className="input"
+                      value={form.track}
+                      disabled={!editable || saving}
+                      onChange={set('track')}
+                      placeholder="1/12"
+                    />
                   </Field>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <Field label={t('meta.comment')}>
@@ -283,7 +337,10 @@ export function MetadataPage() {
               {/* 封面 */}
               <section className="card">
                 <div className="card-title">{t('meta.cover')}</div>
-                <div className="row" style={{ flexWrap: 'wrap', alignItems: 'flex-start', gap: 'var(--sp-4)' }}>
+                <div
+                  className="row"
+                  style={{ flexWrap: 'wrap', alignItems: 'flex-start', gap: 'var(--sp-4)' }}
+                >
                   <div className="row" style={{ gap: 'var(--sp-3)', alignItems: 'flex-start' }}>
                     {cover.kind === 'custom' && (
                       <CoverArtView src={cover.dataUrl} alt={t('meta.cover')} />
@@ -352,7 +409,9 @@ export function MetadataPage() {
                 <div className="row-between" style={{ flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
                   <div style={{ minWidth: 0 }}>
                     <div className="xs muted">{t('convert.outputFile')}</div>
-                    <div className="mono truncate" title={outName}>{outName}</div>
+                    <div className="mono truncate" title={outName}>
+                      {outName}
+                    </div>
                   </div>
                   <button
                     className="btn btn-primary"
@@ -363,9 +422,7 @@ export function MetadataPage() {
                     {saving ? S.saving : t('meta.saveAs')}
                   </button>
                 </div>
-                {!editable && (
-                  <div className="field-hint mt-2">{t('meta.notSupported')}</div>
-                )}
+                {!editable && <div className="field-hint mt-2">{t('meta.notSupported')}</div>}
               </section>
             </>
           )}
@@ -376,10 +433,13 @@ export function MetadataPage() {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId();
   return (
     <div className="field">
-      <label className="field-label"><span>{label}</span></label>
-      {children}
+      <label className="field-label" htmlFor={id}>
+        <span>{label}</span>
+      </label>
+      {isValidElement(children) ? cloneElement(children, { id }) : children}
     </div>
   );
 }
@@ -434,17 +494,20 @@ function buildMetaArgs(ctx: SaveCtx, inName: string, coverName: string | null): 
   if (ctx.cover.kind === 'custom' && coverName) {
     // 用户上传的封面作为第二输入
     args.push(
-      '-i', coverName,
-      '-map', '1', '-map', '0:a', '-c', 'copy',
-      '-disposition:v:0', 'attached_pic',
+      '-i',
+      coverName,
+      '-map',
+      '1',
+      '-map',
+      '0:a',
+      '-c',
+      'copy',
+      '-disposition:v:0',
+      'attached_pic',
     );
   } else if (ctx.cover.kind !== 'none') {
     // 保留原封面流（cover.kind==='original' 时 probe.coverArt 必然存在，视频流确定存在）
-    args.push(
-      '-map', '0:a:0', '-map', '0:v:0',
-      '-c', 'copy',
-      '-disposition:v:0', 'attached_pic',
-    );
+    args.push('-map', '0:a:0', '-map', '0:v:0', '-c', 'copy', '-disposition:v:0', 'attached_pic');
   } else {
     args.push('-map', '0:a:0', '-vn', '-c:a', 'copy');
   }
@@ -462,7 +525,9 @@ async function saveWeb(ctx: SaveCtx): Promise<void> {
   const inName = `meta_in_${stamp}.${srcExt}`;
   const written: string[] = [];
   const logs: string[] = [];
-  const onLog = ({ message }: { message: string }) => { logs.push(message); };
+  const onLog = ({ message }: { message: string }) => {
+    logs.push(message);
+  };
 
   try {
     const bytes = new Uint8Array(await ctx.source.file.arrayBuffer());
@@ -497,7 +562,11 @@ async function saveWeb(ctx: SaveCtx): Promise<void> {
     await deliverResult({ fileName: ctx.outName, data });
   } finally {
     for (const f of written) {
-      try { await ff.deleteFile(f); } catch { /* 清理失败不阻断 */ }
+      try {
+        await ff.deleteFile(f);
+      } catch {
+        /* 清理失败不阻断 */
+      }
     }
   }
 }
@@ -527,10 +596,7 @@ async function saveDesktop(ctx: SaveCtx): Promise<void> {
         if (timer) clearTimeout(timer);
         fn();
       };
-      timer = setTimeout(
-        () => finish(() => reject(new Error(S_TIMEOUT))),
-        10 * 60 * 1000,
-      );
+      timer = setTimeout(() => finish(() => reject(new Error(S_TIMEOUT))), 10 * 60 * 1000);
 
       // 先注册完两个监听再启动任务，避免 done 事件早于监听就绪
       void (async () => {
@@ -545,17 +611,25 @@ async function saveDesktop(ctx: SaveCtx): Promise<void> {
           }),
         ]);
         unsubs.push(u1, u2);
-        if (settled) { u1(); u2(); return; }
+        if (settled) {
+          u1();
+          u2();
+          return;
+        }
         await invoke('start_task', { taskId, args, outputPath: outPath, notify: true });
-      })().catch((err) => finish(() => reject(
-        err instanceof Error ? err : new Error(String(err)),
-      )));
+      })().catch((err) =>
+        finish(() => reject(err instanceof Error ? err : new Error(String(err)))),
+      );
     });
 
     void revealOutput(result).catch(() => undefined);
   } finally {
     for (const off of unsubs) {
-      try { off(); } catch { /* ignore */ }
+      try {
+        off();
+      } catch {
+        /* ignore */
+      }
     }
     if (timer) clearTimeout(timer);
   }

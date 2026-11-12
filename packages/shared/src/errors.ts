@@ -1,22 +1,22 @@
 /** 统一错误码与错误模型：三平台共享同一套错误语义 */
 
 export type EngineErrorCode =
-  | 'E_ENGINE_INIT'        // 引擎初始化失败
+  | 'E_ENGINE_INIT' // 引擎初始化失败
   | 'E_UNSUPPORTED_FORMAT' // 输入/输出格式不支持
-  | 'E_CORRUPT_FILE'       // 文件损坏 / 数据非法
-  | 'E_ENCODER_UNAVAILABLE'// 目标编码器不可用
-  | 'E_DECODER_UNAVAILABLE'// 输入编码器不可用
-  | 'E_PERMISSION'         // 文件权限 / 沙箱拒绝
-  | 'E_DISK_FULL'          // 磁盘空间不足
-  | 'E_OUTPUT_EXISTS'      // 输出文件冲突（默认策略：重命名）
-  | 'E_PATH_UNSAFE'        // 路径不安全（遍历 / 非法字符）
-  | 'E_CANCELLED'          // 用户取消
-  | 'E_TIMEOUT'            // 处理超时
-  | 'E_OUT_OF_MEMORY'      // 内存不足（浏览器大文件常见）
-  | 'E_NO_SPACE_CHECK'     // 预检：剩余空间不够
-  | 'E_INVALID_PARAM'      // 参数非法
-  | 'E_SOURCE_MISSING'     // 源文件不存在
-  | 'E_UNKNOWN';           // 未知错误
+  | 'E_CORRUPT_FILE' // 文件损坏 / 数据非法
+  | 'E_ENCODER_UNAVAILABLE' // 目标编码器不可用
+  | 'E_DECODER_UNAVAILABLE' // 输入编码器不可用
+  | 'E_PERMISSION' // 文件权限 / 沙箱拒绝
+  | 'E_DISK_FULL' // 磁盘空间不足
+  | 'E_OUTPUT_EXISTS' // 输出文件冲突（默认策略：重命名）
+  | 'E_PATH_UNSAFE' // 路径不安全（遍历 / 非法字符）
+  | 'E_CANCELLED' // 用户取消
+  | 'E_TIMEOUT' // 处理超时
+  | 'E_OUT_OF_MEMORY' // 内存不足（浏览器大文件常见）
+  | 'E_NO_SPACE_CHECK' // 预检：剩余空间不够
+  | 'E_INVALID_PARAM' // 参数非法
+  | 'E_SOURCE_MISSING' // 源文件不存在
+  | 'E_UNKNOWN'; // 未知错误
 
 export interface EngineErrorInfo {
   code: EngineErrorCode;
@@ -61,19 +61,32 @@ const MESSAGES: Record<EngineErrorCode, { message: string; retryable: boolean }>
   E_UNKNOWN: { message: '处理失败', retryable: true },
 };
 
-export function makeEngineError(code: EngineErrorCode, detail?: string, overrides?: { message?: string }): EngineError {
+export function makeEngineError(
+  code: EngineErrorCode,
+  detail?: string,
+  overrides?: { message?: string },
+): EngineError {
   const meta = MESSAGES[code];
   return new EngineError(code, overrides?.message ?? meta.message, detail, meta.retryable);
 }
 
 /** 把 FFmpeg / 底层 stderr 映射为统一错误码 */
-export function classifyEngineOutput(stderrText: string, fallback: EngineErrorCode = 'E_UNKNOWN'): EngineErrorCode {
+export function classifyEngineOutput(
+  stderrText: string,
+  fallback: EngineErrorCode = 'E_UNKNOWN',
+): EngineErrorCode {
   const t = stderrText.toLowerCase();
   const patterns: Array<[RegExp, EngineErrorCode]> = [
-    [/invalid data found when processing input|could not find codec parameters|error while decoding|moov atom not found|truncat.*file|failed to read frame size|header missing/, 'E_CORRUPT_FILE'],
+    [
+      /invalid data found when processing input|could not find codec parameters|error while decoding|moov atom not found|truncat.*file|failed to read frame size|header missing/,
+      'E_CORRUPT_FILE',
+    ],
     [/unknown encoder|encoder .* not found/, 'E_ENCODER_UNAVAILABLE'],
     [/unknown decoder|decoder .* not found|no decoder/, 'E_DECODER_UNAVAILABLE'],
-    [/unsupported codec|not supported|requested output format.*not|unable to find a suitable output format/, 'E_UNSUPPORTED_FORMAT'],
+    [
+      /unsupported codec|not supported|requested output format.*not|unable to find a suitable output format/,
+      'E_UNSUPPORTED_FORMAT',
+    ],
     [/no space left|disk (full|quota)/, 'E_DISK_FULL'],
     [/permission denied|operation not permitted|eacces/, 'E_PERMISSION'],
     [/no such file or directory|enoent/, 'E_SOURCE_MISSING'],

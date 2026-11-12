@@ -22,6 +22,7 @@ data class AppSettings(
     /** dark = 强制深色（默认，符合深色科技风设计）；system = 深色跟随系统 */
     val themeMode: String = "dark",
     val filenameTemplate: String = DEFAULT_FILENAME_TEMPLATE,
+    val autoCheckUpdates: Boolean = true,
 ) {
     companion object {
         fun fromJson(s: String): AppSettings = try {
@@ -34,6 +35,7 @@ data class AppSettings(
                 concurrency = o.optInt("concurrency", 2).coerceIn(1, 4),
                 themeMode = o.optString("themeMode", "system"),
                 filenameTemplate = o.optString("filenameTemplate", DEFAULT_FILENAME_TEMPLATE),
+                autoCheckUpdates = o.optBoolean("autoCheckUpdates", true),
             )
         } catch (t: Throwable) {
             AppSettings()
@@ -49,6 +51,7 @@ fun settingsToJson(s: AppSettings): String = JSONObject().apply {
     put("concurrency", s.concurrency)
     put("themeMode", s.themeMode)
     put("filenameTemplate", s.filenameTemplate)
+    put("autoCheckUpdates", s.autoCheckUpdates)
 }.toString()
 
 class SettingsStore(private val context: Context) {
@@ -79,4 +82,5 @@ class SettingsStore(private val context: Context) {
     suspend fun setConcurrency(v: Int) = update { it.copy(concurrency = v.coerceIn(1, 4)) }
     suspend fun setThemeMode(v: String) = update { it.copy(themeMode = v) }
     suspend fun setFilenameTemplate(v: String) = update { it.copy(filenameTemplate = v) }
+    suspend fun setAutoCheckUpdates(v: Boolean) = update { it.copy(autoCheckUpdates = v) }
 }

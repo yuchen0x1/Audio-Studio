@@ -7,13 +7,13 @@
  */
 
 export type TaskStatus =
-  | 'queued'      // 等待中
-  | 'preparing'   // 准备中（读取文件/初始化引擎）
-  | 'running'     // 转换中
-  | 'paused'      // 已暂停
-  | 'completed'   // 已完成
-  | 'failed'      // 失败
-  | 'cancelled';  // 已取消
+  | 'queued' // 等待中
+  | 'preparing' // 准备中（读取文件/初始化引擎）
+  | 'running' // 转换中
+  | 'paused' // 已暂停
+  | 'completed' // 已完成
+  | 'failed' // 失败
+  | 'cancelled'; // 已取消
 
 export const TERMINAL_STATUSES: TaskStatus[] = ['completed', 'failed', 'cancelled'];
 
@@ -23,8 +23,8 @@ const TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   running: ['paused', 'completed', 'failed', 'cancelled'],
   paused: ['running', 'queued', 'cancelled', 'failed'],
   completed: [],
-  failed: ['queued'],       // 失败后可重试（重新入队）
-  cancelled: ['queued'],    // 取消后可重新执行
+  failed: ['queued'], // 失败后可重试（重新入队）
+  cancelled: ['queued'], // 取消后可重新执行
 };
 
 export function canTransition(from: TaskStatus, to: TaskStatus): boolean {
@@ -124,7 +124,8 @@ export function applyProgress(task: TaskRecord, next: Partial<TaskProgress>): vo
     // 允许 0.999... → 1.0，但禁止回退（ffmpeg 偶尔抖动时取最大值）
     task.progress.ratio = Math.max(task.progress.ratio, clamped);
   }
-  if (typeof next.processedMs === 'number') task.progress.processedMs = Math.max(task.progress.processedMs, next.processedMs);
+  if (typeof next.processedMs === 'number')
+    task.progress.processedMs = Math.max(task.progress.processedMs, next.processedMs);
   if (typeof next.totalMs === 'number' && next.totalMs > 0) task.progress.totalMs = next.totalMs;
   if (typeof next.speed === 'number') task.progress.speed = next.speed;
   if (typeof next.bitrateKbps === 'number') task.progress.bitrateKbps = next.bitrateKbps;

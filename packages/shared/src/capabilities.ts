@@ -103,6 +103,9 @@ export function assembleCapabilities(
 }
 
 /** 同步查询工具 */
-export function findCapability(caps: EngineCapabilities, id: FormatId): FormatCapability | undefined {
+export function findCapability(
+  caps: EngineCapabilities,
+  id: FormatId,
+): FormatCapability | undefined {
   return caps.formats.find((f) => f.id === id);
 }

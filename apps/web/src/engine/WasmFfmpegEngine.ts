@@ -10,13 +10,34 @@
  */
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import {
-  AudioEngine, AudioSource, AudioJob, EngineCapabilities, EngineInfo,
-  JobResult, ProbeResult, ResourceEstimate, TaskCallbacks, MeasureResult,
-  buildConvertArgs, buildMergeArgs, buildTrimArgs, buildMeasureArgs,
-  parseVolumedetect, parseLoudnormJson, expandJob,
-  detectFormat, expectedFormatForExt, classifyEngineOutput, makeEngineError,
-  WEB_SIZE_LIMIT, checkSizeLimit, estimateWasmPeakBytes,
-  FORMATS, ConvertJob, TrimJob, MergeJob,
+  AudioEngine,
+  AudioSource,
+  AudioJob,
+  EngineCapabilities,
+  EngineInfo,
+  JobResult,
+  ProbeResult,
+  ResourceEstimate,
+  TaskCallbacks,
+  MeasureResult,
+  buildConvertArgs,
+  buildMergeArgs,
+  buildTrimArgs,
+  buildMeasureArgs,
+  parseVolumedetect,
+  parseLoudnormJson,
+  expandJob,
+  detectFormat,
+  expectedFormatForExt,
+  classifyEngineOutput,
+  makeEngineError,
+  WEB_SIZE_LIMIT,
+  checkSizeLimit,
+  estimateWasmPeakBytes,
+  FORMATS,
+  ConvertJob,
+  TrimJob,
+  MergeJob,
 } from '@audio-studio/shared';
 import { loadFfmpeg, createFfmpeg, takeSharedFfmpeg } from './loadFfmpeg';
 import { parseProbeOutput, toProbeResult } from './parseProbe';
@@ -36,7 +57,12 @@ interface Waiter {
   reject: (err: Error) => void;
 }
 
-type BuildCtx = { durationMs?: number; measure?: MeasureResult; resolvedSampleRate?: number; resolvedChannels?: number };
+type BuildCtx = {
+  durationMs?: number;
+  measure?: MeasureResult;
+  resolvedSampleRate?: number;
+  resolvedChannels?: number;
+};
 
 /** 把 ffmpeg 的容器字符串映射回格式注册表 */
 export function mapContainerToFormat(container: string): ProbeResult['format'] {
@@ -55,8 +81,6 @@ export function mapContainerToFormat(container: string): ProbeResult['format'] {
   if (c.includes('matroska') || c.includes('webm')) return null;
   return null;
 }
-
-
 
 export class WasmFfmpegEngine implements AudioEngine {
   readonly info: EngineInfo = {
@@ -162,7 +186,7 @@ export class WasmFfmpegEngine implements AudioEngine {
     // 可以创建新实例：首次优先复用启动探测用的共享实例，之后每次新建独立实例
     // （FFmpeg.wasm 单实例不支持并发 exec，池里必须是不同实例）
     if (this.pool.length < this.maxConcurrent) {
-      const ff = takeSharedFfmpeg() ?? await createFfmpeg();
+      const ff = takeSharedFfmpeg() ?? (await createFfmpeg());
       const inst = this.wrap(ff);
       inst.taskId = taskId;
       this.pool.push(inst);
@@ -226,7 +250,9 @@ export class WasmFfmpegEngine implements AudioEngine {
         inst.dead = true;
         try {
           inst.ff.terminate();
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     }
   }
@@ -257,7 +283,11 @@ export class WasmFfmpegEngine implements AudioEngine {
       if (/no such file or directory/i.test(stderr)) {
         throw makeEngineError('E_SOURCE_MISSING');
       }
-      if (/invalid data found when processing input|could not find codec parameters|error while decoding|moov atom not found/i.test(stderr)) {
+      if (
+        /invalid data found when processing input|could not find codec parameters|error while decoding|moov atom not found/i.test(
+          stderr,
+        )
+      ) {
         throw makeEngineError('E_CORRUPT_FILE', stderr.slice(-2000));
       }
       if (!/Input #0/.test(stderr)) {
@@ -269,7 +299,9 @@ export class WasmFfmpegEngine implements AudioEngine {
 
       const parsed = parseProbeOutput(stderr);
       if (!parsed.audio) {
-        throw makeEngineError('E_UNSUPPORTED_FORMAT', stderr.slice(-2000), { message: '文件中没有音频流' });
+        throw makeEngineError('E_UNSUPPORTED_FORMAT', stderr.slice(-2000), {
+          message: '文件中没有音频流',
+        });
       }
 
       // 真实格式 = 容器解析 + 文件头比对
@@ -277,9 +309,10 @@ export class WasmFfmpegEngine implements AudioEngine {
       const actualFormat = magic.format ?? fromContainer;
       const declaredExt = (source.name.split('.').pop() ?? '').toLowerCase();
       const expected = expectedFormatForExt(declaredExt);
-      const mismatch = expected && actualFormat && expected !== actualFormat
-        ? { declared: declaredExt, actual: actualFormat }
-        : undefined;
+      const mismatch =
+        expected && actualFormat && expected !== actualFormat
+          ? { declared: declaredExt, actual: actualFormat }
+          : undefined;
 
       // 封面（真实提取）
       let coverArt: ProbeResult['coverArt'];
@@ -294,7 +327,9 @@ export class WasmFfmpegEngine implements AudioEngine {
         coverArt,
       });
       if (mismatch) {
-        result.warnings.push(`扩展名 .${declaredExt} 与实际格式 ${actualFormat} 不一致，已按实际格式处理`);
+        result.warnings.push(
+          `扩展名 .${declaredExt} 与实际格式 ${actualFormat} 不一致，已按实际格式处理`,
+        );
       }
       if (magic.confidence === 'unknown' && !magic.format) {
         result.warnings.push('无法通过文件头识别格式，信息来自解码器输出');
@@ -303,7 +338,11 @@ export class WasmFfmpegEngine implements AudioEngine {
       this.probeCache.set(source.id, result);
       return result;
     } finally {
-      try { await inst.ff.deleteFile(inName); } catch { /* ignore */ }
+      try {
+        await inst.ff.deleteFile(inName);
+      } catch {
+        /* ignore */
+      }
       this.release(inst);
     }
   }
@@ -312,7 +351,17 @@ export class WasmFfmpegEngine implements AudioEngine {
     const outName = 'cover_extract.bin';
     try {
       inst.logs = [];
-      await inst.ff.exec(['-i', inName, '-map', '0:v:0', '-frames:v', '1', '-f', 'image2', outName]);
+      await inst.ff.exec([
+        '-i',
+        inName,
+        '-map',
+        '0:v:0',
+        '-frames:v',
+        '1',
+        '-f',
+        'image2',
+        outName,
+      ]);
       const data = await inst.ff.readFile(outName);
       const bytes = toBytes(data);
       if (!bytes.length) return undefined;
@@ -320,7 +369,11 @@ export class WasmFfmpegEngine implements AudioEngine {
     } catch {
       return undefined;
     } finally {
-      try { await inst.ff.deleteFile(outName); } catch { /* ignore */ }
+      try {
+        await inst.ff.deleteFile(outName);
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -344,11 +397,12 @@ export class WasmFfmpegEngine implements AudioEngine {
     for (let i = 0; i < jobs.length; i++) {
       if (this.cancelled.has(job.taskId)) throw makeEngineError('E_CANCELLED');
       const wrapped: TaskCallbacks = {
-        onProgress: (p) => callbacks?.onProgress?.({
-          ...p,
-          ratio: (i + p.ratio) / jobs.length,
-          processedMs: p.processedMs,
-        }),
+        onProgress: (p) =>
+          callbacks?.onProgress?.({
+            ...p,
+            ratio: (i + p.ratio) / jobs.length,
+            processedMs: p.processedMs,
+          }),
         onLog: callbacks?.onLog,
       };
       last = await this.runSingle(jobs[i], wrapped, t0);
@@ -359,7 +413,11 @@ export class WasmFfmpegEngine implements AudioEngine {
     return last!;
   }
 
-  private async runSingle(job: AudioJob, callbacks: TaskCallbacks | undefined, t0: number): Promise<JobResult> {
+  private async runSingle(
+    job: AudioJob,
+    callbacks: TaskCallbacks | undefined,
+    t0: number,
+  ): Promise<JobResult> {
     const taskId = job.taskId;
     if (this.cancelled.has(taskId)) throw makeEngineError('E_CANCELLED');
 
@@ -391,7 +449,7 @@ export class WasmFfmpegEngine implements AudioEngine {
         ctx = { durationMs: totalMs };
         if (job.params.normalize?.enabled) {
           // 测量同样限定在裁剪区间内（buildMeasureArgs 对 trim 作业追加 -ss/-t）
-          ctx = { ...ctx, ...await this.measure(job, inst, cancelPromise, callbacks) };
+          ctx = { ...ctx, ...(await this.measure(job, inst, cancelPromise, callbacks)) };
         }
       } else {
         // merge：全部输入写入并探测，取得真实时长/采样率/声道
@@ -411,18 +469,16 @@ export class WasmFfmpegEngine implements AudioEngine {
         const targetFormat = FORMATS[job.params.format];
         const resolvedSampleRate = job.params.sampleRate || probes[0].sampleRate || 44100;
         const maxChannels = Math.max(...probes.map((p) => p.channels ?? 2));
-        const resolvedChannels = job.params.channels
-          || Math.min(maxChannels, Math.max(...targetFormat.channels));
+        const resolvedChannels =
+          job.params.channels || Math.min(maxChannels, Math.max(...targetFormat.channels));
         ctx = { durationMs: totalMs, resolvedSampleRate, resolvedChannels };
         if (job.params.normalize?.enabled) {
-          ctx = { ...ctx, ...await this.measure(job, inst, cancelPromise, callbacks) };
+          ctx = { ...ctx, ...(await this.measure(job, inst, cancelPromise, callbacks)) };
         }
       }
 
       // 2. 进度回调
-      const outDurationMs = job.kind === 'trim'
-        ? Math.max(0, job.endMs - job.startMs)
-        : totalMs;
+      const outDurationMs = job.kind === 'trim' ? Math.max(0, job.endMs - job.startMs) : totalMs;
       inst.progressHandler = (p) => {
         if (!callbacks) return;
         const outUs = typeof p.time === 'number' && p.time > 0 ? p.time : 0;
@@ -454,7 +510,8 @@ export class WasmFfmpegEngine implements AudioEngine {
       // 4. 读取输出
       const data = await inst.ff.readFile(outName);
       const bytes = toBytes(data);
-      if (!bytes.length) throw makeEngineError('E_UNKNOWN', stderr.slice(-2000), { message: '输出文件为空' });
+      if (!bytes.length)
+        throw makeEngineError('E_UNKNOWN', stderr.slice(-2000), { message: '输出文件为空' });
 
       // 5. 真实校验输出（直接探测仍在虚拟 FS 中的结果文件，避免内存 buffer 被转移）
       let outputProbe: ProbeResult | undefined;
@@ -477,15 +534,27 @@ export class WasmFfmpegEngine implements AudioEngine {
     } finally {
       // 清理虚拟文件系统，防止临时文件泄漏
       for (const f of written) {
-        try { await inst.ff.deleteFile(f); } catch { /* ignore */ }
+        try {
+          await inst.ff.deleteFile(f);
+        } catch {
+          /* ignore */
+        }
       }
-      try { await inst.ff.deleteFile(`out_${sanitizeFs(taskId)}${extOf(job)}`); } catch { /* ignore */ }
+      try {
+        await inst.ff.deleteFile(`out_${sanitizeFs(taskId)}${extOf(job)}`);
+      } catch {
+        /* ignore */
+      }
       this.clearCancel(taskId);
       this.release(inst);
     }
   }
 
-  private buildArgs(job: AudioJob, ctx: Parameters<typeof buildConvertArgs>[1], outName: string): string[] {
+  private buildArgs(
+    job: AudioJob,
+    ctx: Parameters<typeof buildConvertArgs>[1],
+    outName: string,
+  ): string[] {
     const withOut = (args: string[]): string[] => {
       // 把输出文件名替换进参数末尾
       const copy = [...args];
@@ -517,11 +586,13 @@ export class WasmFfmpegEngine implements AudioEngine {
     const allLogs = inst.logs.join('\n');
     if (mode === 'peak') {
       const maxVol = parseVolumedetect(allLogs);
-      if (maxVol === undefined) throw makeEngineError('E_UNKNOWN', allLogs.slice(-2000), { message: '峰值测量失败' });
+      if (maxVol === undefined)
+        throw makeEngineError('E_UNKNOWN', allLogs.slice(-2000), { message: '峰值测量失败' });
       return { measure: { maxVolumeDb: maxVol } };
     }
     const lm = parseLoudnormJson(allLogs);
-    if (!lm || lm.inputI === undefined) throw makeEngineError('E_UNKNOWN', allLogs.slice(-2000), { message: 'LUFS 测量失败' });
+    if (!lm || lm.inputI === undefined)
+      throw makeEngineError('E_UNKNOWN', allLogs.slice(-2000), { message: 'LUFS 测量失败' });
     return { measure: lm };
   }
 
@@ -531,7 +602,12 @@ export class WasmFfmpegEngine implements AudioEngine {
     return `in_${sanitizeFs(source.id)}.${extOfSource(source.name)}`;
   }
 
-  private async writeInput(inst: PoolInstance, source: AudioSource, written: string[], idx = 0): Promise<string> {
+  private async writeInput(
+    inst: PoolInstance,
+    source: AudioSource,
+    written: string[],
+    idx = 0,
+  ): Promise<string> {
     const ext = extOfSource(source.name);
     const name = `in_${sanitizeFs(source.id)}${idx > 0 ? `_${idx}` : ''}.${ext}`;
     const bytes = await this.readAll(source);
@@ -550,13 +626,20 @@ export class WasmFfmpegEngine implements AudioEngine {
     inst.logs = [];
     try {
       await inst.ff.exec(['-i', fsName]);
-    } catch { /* -i 无输出时非零退出是正常的 */ }
+    } catch {
+      /* -i 无输出时非零退出是正常的 */
+    }
     const stderr = inst.logs.join('\n');
     const parsed = parseProbeOutput(stderr);
-    if (!parsed.audio) throw makeEngineError('E_UNSUPPORTED_FORMAT', stderr.slice(-1000), { message: '文件中没有音频流' });
+    if (!parsed.audio)
+      throw makeEngineError('E_UNSUPPORTED_FORMAT', stderr.slice(-1000), {
+        message: '文件中没有音频流',
+      });
     const result = toProbeResult(parsed, {
       fileSizeBytes: source.sizeBytes,
-      format: detectFormat(await this.readHeader(source, 4096)).format ?? mapContainerToFormat(parsed.container),
+      format:
+        detectFormat(await this.readHeader(source, 4096)).format ??
+        mapContainerToFormat(parsed.container),
     });
     this.probeCache.set(source.id, result);
     return result;
@@ -622,9 +705,13 @@ export class WasmFfmpegEngine implements AudioEngine {
     const peak = estimateWasmPeakBytes(source.sizeBytes, durationMs);
     const verdict = checkSizeLimit(source.sizeBytes, WEB_SIZE_LIMIT);
     if (verdict === 'reject') {
-      warnings.push(`文件 ${fmtSize(source.sizeBytes)} 超出浏览器引擎处理上限（${fmtSize(WEB_SIZE_LIMIT.hardStopBytes)}），请使用桌面版`);
+      warnings.push(
+        `文件 ${fmtSize(source.sizeBytes)} 超出浏览器引擎处理上限（${fmtSize(WEB_SIZE_LIMIT.hardStopBytes)}），请使用桌面版`,
+      );
     } else if (verdict === 'warn') {
-      warnings.push(`文件较大（${fmtSize(source.sizeBytes)}），预计峰值内存约 ${fmtSize(peak)}，请勿关闭页面`);
+      warnings.push(
+        `文件较大（${fmtSize(source.sizeBytes)}），预计峰值内存约 ${fmtSize(peak)}，请勿关闭页面`,
+      );
     }
     if (peak > 1.5 * 1024 * 1024 * 1024) {
       warnings.push('预计内存需求超过 1.5GB，可能触发浏览器内存限制');
@@ -636,7 +723,11 @@ export class WasmFfmpegEngine implements AudioEngine {
     this.disposed = true;
     for (const inst of this.pool) {
       inst.dead = true;
-      try { inst.ff.terminate(); } catch { /* ignore */ }
+      try {
+        inst.ff.terminate();
+      } catch {
+        /* ignore */
+      }
     }
     this.pool = [];
     this.inUse.clear();

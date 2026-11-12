@@ -77,7 +77,12 @@ export interface EngineCapabilities {
 
 /** 任务进度回调（引擎必须通过它上报真实进度） */
 export interface TaskCallbacks {
-  onProgress?: (p: { ratio: number; processedMs: number; totalMs?: number; speed?: number }) => void;
+  onProgress?: (p: {
+    ratio: number;
+    processedMs: number;
+    totalMs?: number;
+    speed?: number;
+  }) => void;
   onLog?: (line: string) => void;
 }
 

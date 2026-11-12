@@ -22,9 +22,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.audiostudio.app.R
 import com.audiostudio.app.data.TaskRecord
 import com.audiostudio.app.data.TaskStatus
 import com.audiostudio.app.data.targetFormatLabel
@@ -49,6 +51,7 @@ fun TaskRow(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val shareAudioTitle = stringResource(R.string.task_share_audio)
     var expanded by remember(task.id) { mutableStateOf(false) }
 
     SectionCard(modifier = modifier) {
@@ -72,7 +75,7 @@ fun TaskRow(
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                "${task.kindZh()} → ${targetFormatLabel(task)}",
+                "${stringResource(task.kindLabelRes())} → ${targetFormatLabel(task)}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
             )
@@ -131,7 +134,7 @@ fun TaskRow(
         if (task.status == TaskStatus.COMPLETED && task.outputPath != null) {
             Spacer(Modifier.height(6.dp))
             Text(
-                "输出：${task.outputPath}",
+                stringResource(R.string.task_output, task.outputPath),
                 color = com.audiostudio.app.ui.theme.SuccessGreen,
                 fontSize = 12.sp,
             )
@@ -146,18 +149,18 @@ fun TaskRow(
             when (task.status) {
                 TaskStatus.QUEUED, TaskStatus.PREPARING, TaskStatus.RUNNING -> {
                     OutlinedButton(onClick = { onPause(task.id) }, modifier = Modifier.weight(1f)) {
-                        Text("暂停", fontSize = 13.sp)
+                        Text(stringResource(R.string.common_pause), fontSize = 13.sp)
                     }
                     OutlinedButton(onClick = { onCancel(task.id) }, modifier = Modifier.weight(1f)) {
-                        Text("取消", fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.common_cancel), fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
                     }
                 }
                 TaskStatus.PAUSED -> {
                     OutlinedButton(onClick = { onResume(task.id) }, modifier = Modifier.weight(1f)) {
-                        Text("继续", fontSize = 13.sp)
+                        Text(stringResource(R.string.common_resume), fontSize = 13.sp)
                     }
                     OutlinedButton(onClick = { onCancel(task.id) }, modifier = Modifier.weight(1f)) {
-                        Text("取消", fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.common_cancel), fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
                     }
                 }
                 TaskStatus.COMPLETED -> {
@@ -169,30 +172,30 @@ fun TaskRow(
                                 putExtra(Intent.EXTRA_STREAM, android.net.Uri.parse(uri))
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
-                            context.startActivity(Intent.createChooser(send, "分享音频"))
+                            context.startActivity(Intent.createChooser(send, shareAudioTitle))
                         },
                         modifier = Modifier.weight(1f),
                         enabled = task.outputUri != null,
                     ) {
-                        Text("分享", fontSize = 13.sp)
+                        Text(stringResource(R.string.common_share), fontSize = 13.sp)
                     }
                     OutlinedButton(onClick = { onRetry(task) }, modifier = Modifier.weight(1f)) {
-                        Text("再次执行", fontSize = 13.sp)
+                        Text(stringResource(R.string.common_reexecute), fontSize = 13.sp)
                     }
                 }
                 TaskStatus.FAILED, TaskStatus.CANCELLED -> {
                     OutlinedButton(onClick = { onRetry(task) }, modifier = Modifier.weight(1f)) {
-                        Text("重试", fontSize = 13.sp)
+                        Text(stringResource(R.string.common_retry), fontSize = 13.sp)
                     }
                 }
             }
             OutlinedButton(onClick = { onDelete(task.id) }) {
-                Text("删除", fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.common_delete), fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
             }
         }
 
         TextButton(onClick = { expanded = !expanded }) {
-            Text(if (expanded) "收起详情" else "详情", fontSize = 12.sp)
+            Text(if (expanded) stringResource(R.string.common_collapse_details) else stringResource(R.string.common_details), fontSize = 12.sp)
         }
         if (expanded) {
             DetailBlock(task)
@@ -203,21 +206,21 @@ fun TaskRow(
 @Composable
 fun DetailBlock(task: TaskRecord) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        DetailLine("任务 ID", task.id)
-        task.sourceUri?.let { DetailLine("源 URI", it) }
-        task.sourcePath?.let { DetailLine("本地缓存", it) }
-        task.codec?.let { DetailLine("源编码", it) }
-        task.sampleRate?.let { DetailLine("采样率", "$it Hz") }
-        task.channels?.let { DetailLine("声道", "$it") }
-        task.bitrateKbps?.let { DetailLine("源码率", "$it kbps") }
-        task.startMs?.let { DetailLine("剪辑起点", "${it} ms") }
-        task.endMs?.let { DetailLine("剪辑终点", "${it} ms") }
-        if (task.gapMs > 0) DetailLine("合并间隔", "${task.gapMs} ms")
-        if (task.mergeNames.isNotEmpty()) DetailLine("合并文件", task.mergeNames.joinToString("、"))
-        DetailLine("参数", prettyParams(task.paramsJson))
-        task.outputUri?.let { DetailLine("输出 URI", it) }
-        task.errorCode?.let { DetailLine("错误码", it) }
-        task.errorDetail?.let { DetailLine("错误详情", it) }
+        DetailLine(stringResource(R.string.detail_task_id), task.id)
+        task.sourceUri?.let { DetailLine(stringResource(R.string.detail_source_uri), it) }
+        task.sourcePath?.let { DetailLine(stringResource(R.string.detail_local_cache), it) }
+        task.codec?.let { DetailLine(stringResource(R.string.detail_source_codec), it) }
+        task.sampleRate?.let { DetailLine(stringResource(R.string.detail_sample_rate), "$it Hz") }
+        task.channels?.let { DetailLine(stringResource(R.string.detail_channels), "$it") }
+        task.bitrateKbps?.let { DetailLine(stringResource(R.string.detail_source_bitrate), "$it kbps") }
+        task.startMs?.let { DetailLine(stringResource(R.string.detail_trim_start), "${it} ms") }
+        task.endMs?.let { DetailLine(stringResource(R.string.detail_trim_end), "${it} ms") }
+        if (task.gapMs > 0) DetailLine(stringResource(R.string.detail_merge_gap), "${task.gapMs} ms")
+        if (task.mergeNames.isNotEmpty()) DetailLine(stringResource(R.string.detail_merge_files), task.mergeNames.joinToString(stringResource(R.string.list_separator)))
+        DetailLine(stringResource(R.string.detail_params), prettyParams(task.paramsJson))
+        task.outputUri?.let { DetailLine(stringResource(R.string.detail_output_uri), it) }
+        task.errorCode?.let { DetailLine(stringResource(R.string.detail_error_code), it) }
+        task.errorDetail?.let { DetailLine(stringResource(R.string.detail_error_detail), it) }
     }
 }
 
@@ -225,7 +228,7 @@ fun DetailBlock(task: TaskRecord) {
 private fun DetailLine(label: String, value: String) {
     Row(Modifier.fillMaxWidth()) {
         Text(
-            "$label：",
+            stringResource(R.string.detail_label, label),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             modifier = Modifier.width(76.dp),

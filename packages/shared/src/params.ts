@@ -4,8 +4,8 @@
  */
 import { BitDepth, FormatDef, FormatId, FORMATS, getFormat } from './formats';
 
-export type SampleRateOption = number;      // 0 = 保持源采样率
-export type ChannelOption = number;         // 0 = 保持源声道
+export type SampleRateOption = number; // 0 = 保持源采样率
+export type ChannelOption = number; // 0 = 保持源声道
 
 export interface NormalizeConfig {
   enabled: boolean;
@@ -52,7 +52,14 @@ export interface ParamOptionAvailability {
 export function paramAvailability(format: FormatId): ParamOptionAvailability {
   const f = getFormat(format);
   if (!f) {
-    return { bitrate: false, vbr: false, sampleRate: false, channels: false, bitDepth: false, compression: false };
+    return {
+      bitrate: false,
+      vbr: false,
+      sampleRate: false,
+      channels: false,
+      bitDepth: false,
+      compression: false,
+    };
   }
   return {
     bitrate: f.supportsBitrate,
@@ -118,7 +125,9 @@ export function deriveParams(
   if (f.supportsBitDepth && sourceInfo?.bitDepth && f.bitDepths?.length) {
     const bd = f.bitDepths.includes(sourceInfo.bitDepth as BitDepth)
       ? (sourceInfo.bitDepth as BitDepth)
-      : (f.bitDepths.includes(16) ? 16 : f.bitDepths[0]);
+      : f.bitDepths.includes(16)
+        ? 16
+        : f.bitDepths[0];
     p.bitDepth = bd;
   }
   void sourceFormat;
@@ -130,7 +139,10 @@ export function closestNumber(list: number[], target: number): number {
   let bestDiff = Math.abs(target - best);
   for (const n of list) {
     const d = Math.abs(target - n);
-    if (d < bestDiff) { best = n; bestDiff = d; }
+    if (d < bestDiff) {
+      best = n;
+      bestDiff = d;
+    }
   }
   return best;
 }
@@ -166,10 +178,16 @@ export function validateParams(params: EncodeParams): string[] {
     errors.push('音量增益需在 -60 ~ +20 dB 之间');
   }
   if (params.normalize.enabled) {
-    if (params.normalize.mode === 'peak' && (params.normalize.target > 0 || params.normalize.target < -24)) {
+    if (
+      params.normalize.mode === 'peak' &&
+      (params.normalize.target > 0 || params.normalize.target < -24)
+    ) {
       errors.push('峰值归一化目标需在 -24 ~ 0 dBFS 之间');
     }
-    if (params.normalize.mode === 'lufs' && (params.normalize.target > -5 || params.normalize.target < -36)) {
+    if (
+      params.normalize.mode === 'lufs' &&
+      (params.normalize.target > -5 || params.normalize.target < -36)
+    ) {
       errors.push('LUFS 目标需在 -36 ~ -5 之间');
     }
   }

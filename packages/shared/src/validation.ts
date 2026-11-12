@@ -4,9 +4,28 @@
  */
 
 const WINDOWS_RESERVED = new Set([
-  'con', 'prn', 'aux', 'nul',
-  'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
-  'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9',
+  'con',
+  'prn',
+  'aux',
+  'nul',
+  'com1',
+  'com2',
+  'com3',
+  'com4',
+  'com5',
+  'com6',
+  'com7',
+  'com8',
+  'com9',
+  'lpt1',
+  'lpt2',
+  'lpt3',
+  'lpt4',
+  'lpt5',
+  'lpt6',
+  'lpt7',
+  'lpt8',
+  'lpt9',
 ]);
 
 /** 非法文件名字符（Windows 兼容 + 控制字符） */
@@ -53,6 +72,7 @@ export function isPathUnsafe(p: string): boolean {
 /** 输出文件名安全校验：必须已清洗、不含路径分隔符 */
 export function isOutputNameSafe(name: string): boolean {
   if (!name || name.length > 300) return false;
+  // eslint-disable-next-line no-control-regex
   if (/[\\/\u0000]/.test(name)) return false;
   if (name === '.' || name === '..') return false;
   return !isPathUnsafe(name);
@@ -68,6 +88,7 @@ export function assertSafeArg(arg: string, index: number, role: 'path' | 'value'
     if (arg.startsWith('-')) {
       throw new Error(`参数 #${index} 非法：路径不能以 "-" 开头: ${arg.slice(0, 60)}`);
     }
+    // eslint-disable-next-line no-control-regex
     if (/[\u0000\r\n]/.test(arg)) {
       throw new Error(`参数 #${index} 非法：路径包含控制字符`);
     }
@@ -102,6 +123,7 @@ export function estimateWasmPeakBytes(sizeBytes: number, durationMs?: number): n
 /** 校验模板是否安全（防止模板导致路径逃逸） */
 export function validateFilenameTemplate(template: string): string | null {
   if (!template || !template.trim()) return '文件名模板不能为空';
+  // eslint-disable-next-line no-control-regex
   if (/[\\/\u0000]/.test(template.replace(/\{[a-z_]+\}/gi, ''))) {
     return '文件名模板不能包含路径分隔符';
   }

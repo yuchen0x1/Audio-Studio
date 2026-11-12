@@ -2,11 +2,18 @@
 import { create } from 'zustand';
 
 export type PageId =
-  | 'home' | 'convert' | 'batch' | 'clip' | 'merge'
-  | 'analyze' | 'metadata' | 'history' | 'settings';
+  'home' | 'convert' | 'batch' | 'clip' | 'merge' | 'analyze' | 'metadata' | 'history' | 'settings';
 
 export const PAGE_ORDER: PageId[] = [
-  'home', 'convert', 'batch', 'clip', 'merge', 'analyze', 'metadata', 'history', 'settings',
+  'home',
+  'convert',
+  'batch',
+  'clip',
+  'merge',
+  'analyze',
+  'metadata',
+  'history',
+  'settings',
 ];
 
 function parseHash(): PageId {

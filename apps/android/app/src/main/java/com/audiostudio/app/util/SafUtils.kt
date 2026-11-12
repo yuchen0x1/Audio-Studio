@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.audiostudio.app.R
 import java.io.File
 
 /** SAF 相关工具：只访问用户主动选择的 uri（不扫描全盘） */
@@ -11,7 +12,7 @@ object SafUtils {
 
     data class PickedFile(val uri: Uri, val name: String, val size: Long)
 
-    /** 尽力取得持久化读权限（用于历史"重新执行"） */
+    /** Best-effort persistable read permission (used by history re-run). */
     fun takePersistableRead(context: Context, uri: Uri) {
         try {
             context.contentResolver.takePersistableUriPermission(
@@ -59,7 +60,7 @@ object SafUtils {
     fun copyTo(context: Context, uri: Uri, dest: File): Long {
         dest.parentFile?.mkdirs()
         val input = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalStateException("无法打开文件: $uri")
+            ?: throw IllegalStateException(context.getString(R.string.error_open_file, uri.toString()))
         input.use { ins ->
             dest.outputStream().use { outs ->
                 ins.copyTo(outs)

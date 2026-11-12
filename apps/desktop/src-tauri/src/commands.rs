@@ -56,7 +56,10 @@ pub fn show_notification(app: &AppHandle, title: &str, body: &str) -> Result<(),
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub async fn engine_info(app: AppHandle, state: State<'_, AppState>) -> Result<EngineInfoJson, String> {
+pub async fn engine_info(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<EngineInfoJson, String> {
     let settings = state.settings.lock().unwrap().clone();
     let res_dir = resource_dir_of(&app);
     tauri::async_runtime::spawn_blocking(move || engine::engine_info(&settings, res_dir.as_deref()))
@@ -71,13 +74,19 @@ pub async fn engine_capabilities(
 ) -> Result<EngineCapabilitiesJson, String> {
     let settings = state.settings.lock().unwrap().clone();
     let res_dir = resource_dir_of(&app);
-    tauri::async_runtime::spawn_blocking(move || engine::capabilities(&settings, res_dir.as_deref()))
-        .await
-        .map_err(|e| safety::err("E_UNKNOWN", &format!("内部线程错误：{e}")))?
+    tauri::async_runtime::spawn_blocking(move || {
+        engine::capabilities(&settings, res_dir.as_deref())
+    })
+    .await
+    .map_err(|e| safety::err("E_UNKNOWN", &format!("内部线程错误：{e}")))?
 }
 
 #[tauri::command]
-pub async fn probe(app: AppHandle, state: State<'_, AppState>, path: String) -> Result<ProbeResult, String> {
+pub async fn probe(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    path: String,
+) -> Result<ProbeResult, String> {
     safety::validate_path_arg(&path, 0)?;
     if !Path::new(&path).exists() {
         return Err(safety::err("E_SOURCE_MISSING", "找不到源文件"));
@@ -98,28 +107,37 @@ pub async fn list_ffmpeg_candidates(
 ) -> Result<Vec<FfmpegCandidate>, String> {
     let settings = state.settings.lock().unwrap().clone();
     let res_dir = resource_dir_of(&app);
-    Ok(tauri::async_runtime::spawn_blocking(move || {
+    tauri::async_runtime::spawn_blocking(move || {
         engine::list_candidates(&settings, res_dir.as_deref())
     })
     .await
-    .map_err(|e| safety::err("E_UNKNOWN", &format!("内部线程错误：{e}")))?)
+    .map_err(|e| safety::err("E_UNKNOWN", &format!("内部线程错误：{e}")))
 }
 
 #[tauri::command]
-pub async fn set_ffmpeg_path(state: State<'_, AppState>, path: String) -> Result<SetPathResult, String> {
+pub async fn set_ffmpeg_path(
+    state: State<'_, AppState>,
+    path: String,
+) -> Result<SetPathResult, String> {
     let trimmed = path.trim().to_string();
     let effective = if trimmed.is_empty() {
         None
     } else {
         let p = Path::new(&trimmed);
         if !p.is_file() {
-            return Err(safety::err("E_SOURCE_MISSING", "指定的 FFmpeg 路径不存在或不是文件"));
+            return Err(safety::err(
+                "E_SOURCE_MISSING",
+                "指定的 FFmpeg 路径不存在或不是文件",
+            ));
         }
         // 真实可执行验证
         let (ok, _out, err) = engine::run_capture(p, &["-version"])
             .map_err(|e| safety::err("E_ENGINE_INIT", &format!("无法执行该 FFmpeg：{e}")))?;
         if !ok && err.trim().is_empty() {
-            return Err(safety::err("E_ENGINE_INIT", "该文件不是可用的 FFmpeg（-version 失败）"));
+            return Err(safety::err(
+                "E_ENGINE_INIT",
+                "该文件不是可用的 FFmpeg（-version 失败）",
+            ));
         }
         Some(trimmed)
     };
@@ -130,7 +148,10 @@ pub async fn set_ffmpeg_path(state: State<'_, AppState>, path: String) -> Result
         .map_err(|e| safety::err("E_UNKNOWN", &format!("设置保存失败：{e}")))?;
     *state.settings.lock().unwrap() = st;
     logging::info("settings", &format!("ffmpeg_path 设为 {effective:?}"));
-    Ok(SetPathResult { ok: true, effective_path: effective })
+    Ok(SetPathResult {
+        ok: true,
+        effective_path: effective,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -169,13 +190,16 @@ pub async fn start_task(
     {
         let mut tasks = state.tasks.lock().unwrap();
         if tasks.contains_key(&task_id) {
-            return Err(safety::err("E_INVALID_PARAM", "任务已在运行（taskId 重复）"));
+            return Err(safety::err(
+                "E_INVALID_PARAM",
+                "任务已在运行（taskId 重复）",
+            ));
         }
         tasks.insert(task_id.clone(), entry.clone());
     }
 
     let notifications_ok = st.notifications_enabled && notify.unwrap_or(true);
-    let max_concurrent = st.max_concurrent_tasks.max(1).min(4);
+    let max_concurrent = st.max_concurrent_tasks.clamp(1, 4);
 
     logging::info(
         "task",
@@ -206,10 +230,16 @@ pub async fn start_task(
 }
 
 #[tauri::command]
-pub fn cancel_task(app: AppHandle, state: State<'_, AppState>, task_id: String) -> Result<(), String> {
+pub fn cancel_task(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    task_id: String,
+) -> Result<(), String> {
     let entry = { state.tasks.lock().unwrap().get(&task_id).cloned() };
     if let Some(entry) = entry {
-        entry.cancelled.store(true, std::sync::atomic::Ordering::SeqCst);
+        entry
+            .cancelled
+            .store(true, std::sync::atomic::Ordering::SeqCst);
         {
             let mut guard = entry.child.lock().unwrap();
             if let Some(child) = guard.as_mut() {
@@ -273,8 +303,14 @@ fn open_with_shell(path: &str) -> Result<(), String> {
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
     use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
-    let file: Vec<u16> = std::ffi::OsStr::new(path).encode_wide().chain(std::iter::once(0)).collect();
-    let op: Vec<u16> = std::ffi::OsStr::new("open").encode_wide().chain(std::iter::once(0)).collect();
+    let file: Vec<u16> = std::ffi::OsStr::new(path)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let op: Vec<u16> = std::ffi::OsStr::new("open")
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
     // SAFETY: 均为以 0 结尾的宽字符串，参数指向有效内存
     let rc = unsafe {
         ShellExecuteW(
@@ -376,7 +412,10 @@ pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<S
     *state.settings.lock().unwrap() = sanitized.clone();
     logging::info(
         "settings",
-        &format!("设置已保存：并发={} 通知={}", sanitized.max_concurrent_tasks, sanitized.notifications_enabled),
+        &format!(
+            "设置已保存：并发={} 通知={}",
+            sanitized.max_concurrent_tasks, sanitized.notifications_enabled
+        ),
     );
     Ok(sanitized)
 }
@@ -389,7 +428,11 @@ pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<S
 pub async fn estimate_disk_space(path: String, needed_bytes: u64) -> Result<DiskEstimate, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let free = free_disk_bytes(Path::new(&path))?;
-        Ok(DiskEstimate { ok: true, free_bytes: free, enough: free >= needed_bytes })
+        Ok(DiskEstimate {
+            ok: true,
+            free_bytes: free,
+            enough: free >= needed_bytes,
+        })
     })
     .await
     .map_err(|e| safety::err("E_UNKNOWN", &format!("内部线程错误：{e}")))?
@@ -400,7 +443,10 @@ fn free_disk_bytes(target: &Path) -> Result<u64, String> {
     let mut dir = if target.is_dir() {
         target.to_path_buf()
     } else {
-        target.parent().map(|d| d.to_path_buf()).unwrap_or_else(|| PathBuf::from("."))
+        target
+            .parent()
+            .map(|d| d.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."))
     };
     while !dir.exists() {
         match dir.parent() {
@@ -413,12 +459,17 @@ fn free_disk_bytes(target: &Path) -> Result<u64, String> {
     {
         use std::os::windows::ffi::OsStrExt;
         use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
-        let wide: Vec<u16> = dir.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let wide: Vec<u16> = dir
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
         let mut available: u64 = 0;
         let mut total: u64 = 0;
         let mut free: u64 = 0;
         // SAFETY: wide 以 0 结尾；三个出参指针有效
-        let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut available, &mut total, &mut free) };
+        let ok =
+            unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut available, &mut total, &mut free) };
         if ok == 0 {
             return Err(safety::err("E_UNKNOWN", "无法读取磁盘剩余空间"));
         }

@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import com.audiostudio.app.R
 import java.io.File
 
 /**
@@ -29,11 +30,11 @@ object MediaStoreWriter {
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-            ?: throw IllegalStateException("无法在下载目录创建文件（MediaStore 拒绝）")
+            ?: throw IllegalStateException(context.getString(R.string.error_mediastore_create))
         try {
             resolver.openOutputStream(uri)?.use { out ->
                 file.inputStream().use { it.copyTo(out) }
-            } ?: throw IllegalStateException("无法写入下载目录")
+            } ?: throw IllegalStateException(context.getString(R.string.error_mediastore_write))
         } catch (t: Throwable) {
             runCatching { resolver.delete(uri, null, null) }
             throw t
@@ -69,12 +70,12 @@ object MediaStoreWriter {
                 if (target != null) break
             }
         }
-        target ?: throw IllegalStateException("无法在选定目录创建文件")
+        target ?: throw IllegalStateException(context.getString(R.string.error_tree_create))
 
         try {
             context.contentResolver.openOutputStream(target)?.use { out ->
                 file.inputStream().use { it.copyTo(out) }
-            } ?: throw IllegalStateException("无法写入选定目录")
+            } ?: throw IllegalStateException(context.getString(R.string.error_tree_write))
         } catch (t: Throwable) {
             runCatching { DocumentsContract.deleteDocument(context.contentResolver, target) }
             throw t

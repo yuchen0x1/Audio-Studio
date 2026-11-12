@@ -19,7 +19,7 @@ interface PlayerState {
   playing: boolean;
   loop: LoopMode;
   shuffle: boolean;
-  volume: number;      // 0..1
+  volume: number; // 0..1
   muted: boolean;
   currentTime: number;
   duration: number;
@@ -59,7 +59,13 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   peaksLoading: false,
 
   setPlaylist: (items, startIndex = 0) => {
-    set({ items, index: items.length ? startIndex : -1, currentTime: 0, peaks: null, playing: items.length > 0 });
+    set({
+      items,
+      index: items.length ? startIndex : -1,
+      currentTime: 0,
+      peaks: null,
+      playing: items.length > 0,
+    });
   },
 
   playAt: (index) => {
@@ -80,12 +86,17 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     if (!items.length) return;
     let ni: number;
     if (shuffle && items.length > 1) {
-      do { ni = Math.floor(Math.random() * items.length); } while (ni === index);
+      do {
+        ni = Math.floor(Math.random() * items.length);
+      } while (ni === index);
     } else {
       ni = index + 1;
       if (ni >= items.length) {
         if (loop === 'all') ni = 0;
-        else { set({ playing: false }); return; }
+        else {
+          set({ playing: false });
+          return;
+        }
       }
     }
     set({ index: ni, currentTime: 0, peaks: null, playing: true });

@@ -1,29 +1,32 @@
 package com.audiostudio.app.engine
 
+import androidx.annotation.StringRes
+import com.audiostudio.app.R
+
 /** 统一错误码与错误模型（与 packages/shared/src/errors.ts 一致） */
 
-enum class EngineErrorCode(val zhMessage: String, val retryable: Boolean) {
-    E_ENGINE_INIT("音频引擎初始化失败，请检查引擎组件是否完整", true),
-    E_UNSUPPORTED_FORMAT("不支持的音频格式", false),
-    E_CORRUPT_FILE("音频文件已损坏或不是有效的音频数据", false),
-    E_ENCODER_UNAVAILABLE("目标编码器在当前引擎中不可用", false),
-    E_DECODER_UNAVAILABLE("无法解码该音频（引擎缺少对应解码器）", false),
-    E_PERMISSION("文件访问被拒绝，请检查权限", false),
-    E_DISK_FULL("磁盘空间不足，请清理后重试", true),
-    E_OUTPUT_EXISTS("输出文件已存在", false),
-    E_PATH_UNSAFE("文件路径不安全或包含非法字符", false),
-    E_CANCELLED("任务已取消", false),
-    E_TIMEOUT("处理超时，任务已中断", true),
-    E_OUT_OF_MEMORY("内存不足，请关闭其他页面或减小文件后重试", true),
-    E_NO_SPACE_CHECK("目标磁盘剩余空间不足", false),
-    E_INVALID_PARAM("编码参数无效", false),
-    E_SOURCE_MISSING("找不到源文件", false),
-    E_UNKNOWN("处理失败", true),
+enum class EngineErrorCode(@StringRes val messageRes: Int, val retryable: Boolean) {
+    E_ENGINE_INIT(R.string.error_engine_init, true),
+    E_UNSUPPORTED_FORMAT(R.string.error_unsupported_format, false),
+    E_CORRUPT_FILE(R.string.error_corrupt_file, false),
+    E_ENCODER_UNAVAILABLE(R.string.error_encoder_unavailable, false),
+    E_DECODER_UNAVAILABLE(R.string.error_decoder_unavailable, false),
+    E_PERMISSION(R.string.error_permission, false),
+    E_DISK_FULL(R.string.error_disk_full, true),
+    E_OUTPUT_EXISTS(R.string.error_output_exists, false),
+    E_PATH_UNSAFE(R.string.error_path_unsafe, false),
+    E_CANCELLED(R.string.error_cancelled, false),
+    E_TIMEOUT(R.string.error_timeout, true),
+    E_OUT_OF_MEMORY(R.string.error_out_of_memory, true),
+    E_NO_SPACE_CHECK(R.string.error_no_space_check, false),
+    E_INVALID_PARAM(R.string.error_invalid_param, false),
+    E_SOURCE_MISSING(R.string.error_source_missing, false),
+    E_UNKNOWN(R.string.error_unknown, true),
 }
 
 data class EngineError(
     val code: EngineErrorCode,
-    val message: String = code.zhMessage,
+    @StringRes val messageRes: Int = code.messageRes,
     val detail: String? = null,
     val retryable: Boolean = code.retryable,
 )

@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
-  fmtDuration, fmtDurationMs, parseTimeInput, fmtSize,
-  fmtBitrate, fmtSampleRate, fmtChannels, fmtPercent, fmtElapsed,
+  fmtDuration,
+  fmtDurationMs,
+  parseTimeInput,
+  fmtSize,
+  fmtBitrate,
+  fmtSampleRate,
+  fmtChannels,
+  fmtPercent,
+  fmtElapsed,
 } from '../utils/format';
 
 describe('fmtDuration', () => {

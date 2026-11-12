@@ -18,19 +18,97 @@ pub struct FormatRegEntry {
 
 /// 与 FORMATS / FORMAT_IDS 顺序一致（13 种）
 pub const FORMAT_REGISTRY: &[FormatRegEntry] = &[
-    FormatRegEntry { id: "mp3", label: "MP3", encoder_candidates: &["libmp3lame"], muxer: "mp3", demuxer: "mp3" },
-    FormatRegEntry { id: "wav", label: "WAV", encoder_candidates: &["pcm_s16le", "pcm_s24le", "pcm_s32le", "pcm_f32le"], muxer: "wav", demuxer: "wav" },
-    FormatRegEntry { id: "flac", label: "FLAC", encoder_candidates: &["flac"], muxer: "flac", demuxer: "flac" },
-    FormatRegEntry { id: "aac", label: "AAC (.aac)", encoder_candidates: &["aac"], muxer: "adts", demuxer: "aac" },
-    FormatRegEntry { id: "m4a", label: "M4A", encoder_candidates: &["aac"], muxer: "ipod", demuxer: "mov" },
-    FormatRegEntry { id: "ogg", label: "OGG Vorbis", encoder_candidates: &["libvorbis", "vorbis"], muxer: "ogg", demuxer: "ogg" },
-    FormatRegEntry { id: "opus", label: "OPUS", encoder_candidates: &["libopus", "opus"], muxer: "opus", demuxer: "ogg" },
-    FormatRegEntry { id: "wma", label: "WMA", encoder_candidates: &["wmav2", "wmav1"], muxer: "asf", demuxer: "asf" },
-    FormatRegEntry { id: "aiff", label: "AIFF", encoder_candidates: &["pcm_s16be", "pcm_s24be", "pcm_s32be"], muxer: "aiff", demuxer: "aiff" },
-    FormatRegEntry { id: "ape", label: "APE (Monkey's Audio)", encoder_candidates: &["ape"], muxer: "ape", demuxer: "ape" },
-    FormatRegEntry { id: "ac3", label: "AC3 (Dolby Digital)", encoder_candidates: &["ac3"], muxer: "ac3", demuxer: "ac3" },
-    FormatRegEntry { id: "amr", label: "AMR-NB", encoder_candidates: &["libopencore_amrnb"], muxer: "amr", demuxer: "amr" },
-    FormatRegEntry { id: "alac", label: "ALAC (Apple Lossless)", encoder_candidates: &["alac"], muxer: "ipod", demuxer: "mov" },
+    FormatRegEntry {
+        id: "mp3",
+        label: "MP3",
+        encoder_candidates: &["libmp3lame"],
+        muxer: "mp3",
+        demuxer: "mp3",
+    },
+    FormatRegEntry {
+        id: "wav",
+        label: "WAV",
+        encoder_candidates: &["pcm_s16le", "pcm_s24le", "pcm_s32le", "pcm_f32le"],
+        muxer: "wav",
+        demuxer: "wav",
+    },
+    FormatRegEntry {
+        id: "flac",
+        label: "FLAC",
+        encoder_candidates: &["flac"],
+        muxer: "flac",
+        demuxer: "flac",
+    },
+    FormatRegEntry {
+        id: "aac",
+        label: "AAC (.aac)",
+        encoder_candidates: &["aac"],
+        muxer: "adts",
+        demuxer: "aac",
+    },
+    FormatRegEntry {
+        id: "m4a",
+        label: "M4A",
+        encoder_candidates: &["aac"],
+        muxer: "ipod",
+        demuxer: "mov",
+    },
+    FormatRegEntry {
+        id: "ogg",
+        label: "OGG Vorbis",
+        encoder_candidates: &["libvorbis", "vorbis"],
+        muxer: "ogg",
+        demuxer: "ogg",
+    },
+    FormatRegEntry {
+        id: "opus",
+        label: "OPUS",
+        encoder_candidates: &["libopus", "opus"],
+        muxer: "opus",
+        demuxer: "ogg",
+    },
+    FormatRegEntry {
+        id: "wma",
+        label: "WMA",
+        encoder_candidates: &["wmav2", "wmav1"],
+        muxer: "asf",
+        demuxer: "asf",
+    },
+    FormatRegEntry {
+        id: "aiff",
+        label: "AIFF",
+        encoder_candidates: &["pcm_s16be", "pcm_s24be", "pcm_s32be"],
+        muxer: "aiff",
+        demuxer: "aiff",
+    },
+    FormatRegEntry {
+        id: "ape",
+        label: "APE (Monkey's Audio)",
+        encoder_candidates: &["ape"],
+        muxer: "ape",
+        demuxer: "ape",
+    },
+    FormatRegEntry {
+        id: "ac3",
+        label: "AC3 (Dolby Digital)",
+        encoder_candidates: &["ac3"],
+        muxer: "ac3",
+        demuxer: "ac3",
+    },
+    FormatRegEntry {
+        id: "amr",
+        label: "AMR-NB",
+        encoder_candidates: &["libopencore_amrnb"],
+        muxer: "amr",
+        demuxer: "amr",
+    },
+    FormatRegEntry {
+        id: "alac",
+        label: "ALAC (Apple Lossless)",
+        encoder_candidates: &["alac"],
+        muxer: "ipod",
+        demuxer: "mov",
+    },
 ];
 
 #[derive(Debug, Clone, Serialize)]
@@ -73,7 +151,8 @@ pub fn parse_encoders(output: &str) -> Vec<String> {
 /// ```
 pub fn parse_muxers(output: &str) -> Vec<String> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r"^\s{1,2}([ ED]{1,2})\s+([A-Za-z0-9_,-]+)\s+\S").unwrap());
+    let re =
+        RE.get_or_init(|| Regex::new(r"^\s{1,2}([ ED]{1,2})\s+([A-Za-z0-9_,-]+)\s+\S").unwrap());
     let mut names: Vec<String> = Vec::new();
     for line in output.split(['\r', '\n']) {
         if let Some(c) = re.captures(line) {
@@ -108,9 +187,9 @@ pub fn parse_filters(output: &str) -> Vec<String> {
         }
         // 输入输出列：A->A / V->A / |->A / N->N
         if !io.contains("->")
-            || !io
-                .chars()
-                .all(|c| c.is_ascii_uppercase() || matches!(c, '-' | '>' | '|' | '*') || c.is_ascii_digit())
+            || !io.chars().all(|c| {
+                c.is_ascii_uppercase() || matches!(c, '-' | '>' | '|' | '*') || c.is_ascii_digit()
+            })
         {
             continue;
         }
@@ -245,8 +324,17 @@ Filters:
 
     #[test]
     fn format_capabilities_intersect_registry() {
-        let encoders = vec!["libmp3lame".to_string(), "flac".to_string(), "aac".to_string()];
-        let muxers = vec!["mp3".to_string(), "flac".to_string(), "ipod".to_string(), "adts".to_string()];
+        let encoders = vec![
+            "libmp3lame".to_string(),
+            "flac".to_string(),
+            "aac".to_string(),
+        ];
+        let muxers = vec![
+            "mp3".to_string(),
+            "flac".to_string(),
+            "ipod".to_string(),
+            "adts".to_string(),
+        ];
         let demuxers = vec!["mp3".to_string(), "mov".to_string()];
 
         let caps = build_format_capabilities(&encoders, &muxers, &demuxers);
@@ -284,7 +372,10 @@ Filters:
         let ids: Vec<&str> = FORMAT_REGISTRY.iter().map(|f| f.id).collect();
         assert_eq!(
             ids,
-            vec!["mp3", "wav", "flac", "aac", "m4a", "ogg", "opus", "wma", "aiff", "ape", "ac3", "amr", "alac"]
+            vec![
+                "mp3", "wav", "flac", "aac", "m4a", "ogg", "opus", "wma", "aiff", "ape", "ac3",
+                "amr", "alac"
+            ]
         );
     }
 }

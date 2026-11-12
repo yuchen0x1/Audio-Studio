@@ -32,9 +32,15 @@ export async function createFfmpeg(): Promise<FFmpeg> {
       timeout,
     ]);
   } catch (e) {
-    try { ff.terminate(); } catch { /* ignore */ }
+    try {
+      ff.terminate();
+    } catch {
+      /* ignore */
+    }
     const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`音频引擎核心加载失败: ${msg}（请确认 public/ffmpeg/ 下核心文件完整）`);
+    throw new Error(`音频引擎核心加载失败: ${msg}（请确认 public/ffmpeg/ 下核心文件完整）`, {
+      cause: e,
+    });
   }
   return ff;
 }

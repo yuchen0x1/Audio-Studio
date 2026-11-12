@@ -115,7 +115,10 @@ fn base_command(program: &Path) -> Command {
 }
 
 /// 运行并捕获 stdout/stderr（用于 -version / -encoders 等只读查询）
-pub(crate) fn run_capture(program: &Path, args: &[&str]) -> std::io::Result<(bool, String, String)> {
+pub(crate) fn run_capture(
+    program: &Path,
+    args: &[&str],
+) -> std::io::Result<(bool, String, String)> {
     let out = base_command(program)
         .args(args)
         .stdin(Stdio::null())
@@ -144,13 +147,20 @@ fn is_ffmpeg_exe(p: &Path) -> bool {
     if !p.is_file() {
         return false;
     }
-    let name = p.file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
-    name == "ffmpeg.exe" || name == "ffmpeg" || (name.starts_with("ffmpeg-") && name.ends_with(".exe"))
+    let name = p
+        .file_name()
+        .map(|n| n.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    name == "ffmpeg.exe"
+        || name == "ffmpeg"
+        || (name.starts_with("ffmpeg-") && name.ends_with(".exe"))
 }
 
 /// 当前 exe 目录
 pub fn exe_dir() -> Option<PathBuf> {
-    std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()))
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
 }
 
 /// 按规格顺序定位 ffmpeg：sidecar → 系统 PATH → 设置中的自定义路径
@@ -168,15 +178,24 @@ pub fn locate(settings: &Settings, resource_dir: Option<&Path>) -> Option<Locate
         // 优先标准名
         let std = dir.join("ffmpeg.exe");
         if is_ffmpeg_exe(&std) {
-            return Some(Located { path: std, source: "sidecar" });
+            return Some(Located {
+                path: std,
+                source: "sidecar",
+            });
         }
         // 其次 sidecar 打包命名：ffmpeg-<target>.exe
         if let Ok(entries) = std::fs::read_dir(dir) {
             for e in entries.flatten() {
                 let p = e.path();
-                let name = p.file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
+                let name = p
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_lowercase())
+                    .unwrap_or_default();
                 if name.starts_with("ffmpeg-") && name.ends_with(".exe") {
-                    return Some(Located { path: p, source: "sidecar" });
+                    return Some(Located {
+                        path: p,
+                        source: "sidecar",
+                    });
                 }
             }
         }
@@ -191,7 +210,10 @@ pub fn locate(settings: &Settings, resource_dir: Option<&Path>) -> Option<Locate
             for name in ["ffmpeg.exe", "ffmpeg"] {
                 let p = dir.join(name);
                 if is_ffmpeg_exe(&p) {
-                    return Some(Located { path: p, source: "path" });
+                    return Some(Located {
+                        path: p,
+                        source: "path",
+                    });
                 }
             }
         }
@@ -201,7 +223,10 @@ pub fn locate(settings: &Settings, resource_dir: Option<&Path>) -> Option<Locate
     if let Some(custom) = settings.ffmpeg_path.as_deref() {
         let p = PathBuf::from(custom);
         if is_ffmpeg_exe(&p) {
-            return Some(Located { path: p, source: "custom" });
+            return Some(Located {
+                path: p,
+                source: "custom",
+            });
         }
     }
 
@@ -225,20 +250,25 @@ pub fn parse_version_banner(banner: &str) -> String {
         return String::new();
     }
     let tokens: Vec<&str> = first.split_whitespace().collect();
-    if tokens.len() >= 3 && tokens[0] == "ffmpeg" && tokens[1] == "version" {
-        tokens[2].to_string()
-    } else if tokens.len() >= 3 && tokens[1] == "version" {
+    if tokens.len() >= 3 && tokens[1] == "version" {
         tokens[2].to_string()
     } else {
         first.to_string()
     }
 }
 
-pub fn engine_info(settings: &Settings, resource_dir: Option<&Path>) -> Result<EngineInfoJson, String> {
+pub fn engine_info(
+    settings: &Settings,
+    resource_dir: Option<&Path>,
+) -> Result<EngineInfoJson, String> {
     let located = locate_result(settings, resource_dir)?;
     let (ok, stdout, stderr) = run_capture(&located.path, &["-version"])
         .map_err(|e| safety::err("E_ENGINE_INIT", &format!("无法执行 FFmpeg：{e}")))?;
-    let banner = if stdout.trim().is_empty() { stderr } else { stdout };
+    let banner = if stdout.trim().is_empty() {
+        stderr
+    } else {
+        stdout
+    };
     if !ok && banner.trim().is_empty() {
         return Err(safety::err("E_ENGINE_INIT", "FFmpeg 版本探测失败"));
     }
@@ -262,14 +292,23 @@ pub struct FfmpegCandidate {
 pub fn list_candidates(settings: &Settings, resource_dir: Option<&Path>) -> Vec<FfmpegCandidate> {
     let mut found: Vec<(PathBuf, &'static str)> = Vec::new();
     let push = |found: &mut Vec<(PathBuf, &'static str)>, p: PathBuf, src: &'static str| {
-        if is_ffmpeg_exe(&p) && !found.iter().any(|(q, _)| q.to_string_lossy().eq_ignore_ascii_case(&p.to_string_lossy())) {
+        if is_ffmpeg_exe(&p)
+            && !found.iter().any(|(q, _)| {
+                q.to_string_lossy()
+                    .eq_ignore_ascii_case(&p.to_string_lossy())
+            })
+        {
             found.push((p, src));
         }
     };
 
     if let Some(d) = exe_dir() {
         push(&mut found, d.join("ffmpeg.exe"), "sidecar");
-        push(&mut found, d.join("resources").join("ffmpeg.exe"), "sidecar");
+        push(
+            &mut found,
+            d.join("resources").join("ffmpeg.exe"),
+            "sidecar",
+        );
     }
     if let Some(r) = resource_dir {
         push(&mut found, r.join("ffmpeg.exe"), "sidecar");
@@ -292,9 +331,15 @@ pub fn list_candidates(settings: &Settings, resource_dir: Option<&Path>) -> Vec<
         .map(|(p, source)| {
             let version = run_capture(&p, &["-version"])
                 .ok()
-                .map(|(_, out, err)| parse_version_banner(if out.trim().is_empty() { &err } else { &out }))
+                .map(|(_, out, err)| {
+                    parse_version_banner(if out.trim().is_empty() { &err } else { &out })
+                })
                 .unwrap_or_default();
-            FfmpegCandidate { path: p.to_string_lossy().into_owned(), version, source }
+            FfmpegCandidate {
+                path: p.to_string_lossy().into_owned(),
+                version,
+                source,
+            }
         })
         .collect()
 }
@@ -303,7 +348,10 @@ pub fn list_candidates(settings: &Settings, resource_dir: Option<&Path>) -> Vec<
 // 能力检测
 // ---------------------------------------------------------------------------
 
-pub fn capabilities(settings: &Settings, resource_dir: Option<&Path>) -> Result<EngineCapabilitiesJson, String> {
+pub fn capabilities(
+    settings: &Settings,
+    resource_dir: Option<&Path>,
+) -> Result<EngineCapabilitiesJson, String> {
     let located = locate_result(settings, resource_dir)?;
     let fetch = |args: &[&str]| -> Result<String, String> {
         let (_, out, err) = run_capture(&located.path, args)
@@ -337,14 +385,30 @@ pub fn capabilities(settings: &Settings, resource_dir: Option<&Path>) -> Result<
 // ---------------------------------------------------------------------------
 
 pub const ERROR_MESSAGES: &[(&str, &str, bool)] = &[
-    ("E_CORRUPT_FILE", "音频文件已损坏或不是有效的音频数据", false),
-    ("E_ENCODER_UNAVAILABLE", "目标编码器在当前引擎中不可用", false),
-    ("E_DECODER_UNAVAILABLE", "无法解码该音频（引擎缺少对应解码器）", false),
+    (
+        "E_CORRUPT_FILE",
+        "音频文件已损坏或不是有效的音频数据",
+        false,
+    ),
+    (
+        "E_ENCODER_UNAVAILABLE",
+        "目标编码器在当前引擎中不可用",
+        false,
+    ),
+    (
+        "E_DECODER_UNAVAILABLE",
+        "无法解码该音频（引擎缺少对应解码器）",
+        false,
+    ),
     ("E_UNSUPPORTED_FORMAT", "不支持的音频格式", false),
     ("E_DISK_FULL", "磁盘空间不足，请清理后重试", true),
     ("E_PERMISSION", "文件访问被拒绝，请检查权限", false),
     ("E_SOURCE_MISSING", "找不到源文件", false),
-    ("E_OUT_OF_MEMORY", "内存不足，请关闭其他页面或减小文件后重试", true),
+    (
+        "E_OUT_OF_MEMORY",
+        "内存不足，请关闭其他页面或减小文件后重试",
+        true,
+    ),
     ("E_TIMEOUT", "处理超时，任务已中断", true),
     ("E_CANCELLED", "任务已取消", false),
     ("E_UNKNOWN", "处理失败", true),
@@ -366,16 +430,28 @@ pub fn classify_stderr(stderr_text: &str) -> &'static str {
             r"invalid data found when processing input|could not find codec parameters|error while decoding|moov atom not found|truncat.*file|failed to read frame size|header missing",
             "E_CORRUPT_FILE",
         ),
-        (r"unknown encoder|encoder .* not found", "E_ENCODER_UNAVAILABLE"),
-        (r"unknown decoder|decoder .* not found|no decoder", "E_DECODER_UNAVAILABLE"),
+        (
+            r"unknown encoder|encoder .* not found",
+            "E_ENCODER_UNAVAILABLE",
+        ),
+        (
+            r"unknown decoder|decoder .* not found|no decoder",
+            "E_DECODER_UNAVAILABLE",
+        ),
         (
             r"unsupported codec|not supported|requested output format.*not|unable to find a suitable output format",
             "E_UNSUPPORTED_FORMAT",
         ),
         (r"no space left|disk (full|quota)", "E_DISK_FULL"),
-        (r"permission denied|operation not permitted|eacces", "E_PERMISSION"),
+        (
+            r"permission denied|operation not permitted|eacces",
+            "E_PERMISSION",
+        ),
         (r"no such file or directory|enoent", "E_SOURCE_MISSING"),
-        (r"cannot allocate memory|out of memory|std::bad_alloc|memoryerror", "E_OUT_OF_MEMORY"),
+        (
+            r"cannot allocate memory|out of memory|std::bad_alloc|memoryerror",
+            "E_OUT_OF_MEMORY",
+        ),
         (r"killed|sigkill", "E_TIMEOUT"),
         (r"error opening input", "E_CORRUPT_FILE"),
     ];
@@ -396,7 +472,10 @@ pub struct RingLines {
 
 impl RingLines {
     pub fn new(cap: usize) -> Self {
-        Self { cap: cap.max(1), lines: VecDeque::new() }
+        Self {
+            cap: cap.max(1),
+            lines: VecDeque::new(),
+        }
     }
     pub fn push(&mut self, line: impl Into<String>) {
         if self.lines.len() >= self.cap {
@@ -494,7 +573,10 @@ fn parse_audio_stream(line: &str) -> Option<ParsedAudio> {
     )
     .unwrap();
 
-    let mut a = ParsedAudio { tags: BTreeMap::new(), ..Default::default() };
+    let mut a = ParsedAudio {
+        tags: BTreeMap::new(),
+        ..Default::default()
+    };
     let codec_raw;
     if let Some(c) = re.captures(line) {
         codec_raw = c[1].trim().to_string();
@@ -589,7 +671,9 @@ pub fn parse_probe_output(stderr: &str) -> ParsedProbe {
                 result.bitrate_kbps = c[1].parse::<u64>().ok();
             }
             if line.contains("Duration: N/A") {
-                result.warnings.push("文件时长未知（流损坏或为直播流格式）".into());
+                result
+                    .warnings
+                    .push("文件时长未知（流损坏或为直播流格式）".into());
             }
             continue;
         }
@@ -700,71 +784,145 @@ pub fn detect_format(bytes: &[u8]) -> MagicDetection {
     }
     // RIFF .... WAVE
     if ascii(bytes, 0, 4) == "RIFF" && ascii(bytes, 8, 4) == "WAVE" {
-        return MagicDetection { format: Some("wav"), container: "wav".into(), codec_hint: None };
+        return MagicDetection {
+            format: Some("wav"),
+            container: "wav".into(),
+            codec_hint: None,
+        };
     }
     if ascii(bytes, 0, 4) == "fLaC" {
-        return MagicDetection { format: Some("flac"), container: "flac".into(), codec_hint: None };
+        return MagicDetection {
+            format: Some("flac"),
+            container: "flac".into(),
+            codec_hint: None,
+        };
     }
     if ascii(bytes, 0, 4) == "OggS" {
         let head = ascii(bytes, 0, bytes.len().min(64));
         let hint = if head.contains("OpusHead") {
-            return MagicDetection { format: Some("opus"), container: "ogg".into(), codec_hint: Some("opus".into()) };
+            return MagicDetection {
+                format: Some("opus"),
+                container: "ogg".into(),
+                codec_hint: Some("opus".into()),
+            };
         } else if head.contains("vorbis") {
-            return MagicDetection { format: Some("ogg"), container: "ogg".into(), codec_hint: Some("vorbis".into()) };
+            return MagicDetection {
+                format: Some("ogg"),
+                container: "ogg".into(),
+                codec_hint: Some("vorbis".into()),
+            };
         } else if head.contains("FLAC") {
-            return MagicDetection { format: Some("flac"), container: "ogg".into(), codec_hint: Some("flac".into()) };
+            return MagicDetection {
+                format: Some("flac"),
+                container: "ogg".into(),
+                codec_hint: Some("flac".into()),
+            };
         } else if head.contains("Speex") {
-            return MagicDetection { format: None, container: "ogg".into(), codec_hint: Some("speex".into()) };
+            return MagicDetection {
+                format: None,
+                container: "ogg".into(),
+                codec_hint: Some("speex".into()),
+            };
         } else {
             None
         };
-        return MagicDetection { format: Some("ogg"), container: "ogg".into(), codec_hint: hint };
+        return MagicDetection {
+            format: Some("ogg"),
+            container: "ogg".into(),
+            codec_hint: hint,
+        };
     }
     if ascii(bytes, 0, 3) == "ID3" {
-        return MagicDetection { format: Some("mp3"), container: "mp3".into(), codec_hint: None };
+        return MagicDetection {
+            format: Some("mp3"),
+            container: "mp3".into(),
+            codec_hint: None,
+        };
     }
     if bytes[0] == 0xff && (bytes[1] & 0xe0) == 0xe0 {
         let layer = (bytes[1] >> 1) & 0x03;
         let bitrate_idx = (bytes[2] >> 4) & 0x0f;
         let samplerate_idx = (bytes[2] >> 2) & 0x03;
         if layer != 0 && bitrate_idx != 0x0f && samplerate_idx != 0x03 {
-            return MagicDetection { format: Some("mp3"), container: "mp3".into(), codec_hint: None };
+            return MagicDetection {
+                format: Some("mp3"),
+                container: "mp3".into(),
+                codec_hint: None,
+            };
         }
     }
     if bytes.len() >= 12 && ascii(bytes, 4, 4) == "ftyp" {
         let brand_raw = ascii(bytes, 8, 4);
         let brand = brand_raw.trim().to_string();
-        let hint = if brand == "ALAC" { Some("alac".into()) } else { None };
+        let hint = if brand == "ALAC" {
+            Some("alac".into())
+        } else {
+            None
+        };
         let _ = brand;
-        return MagicDetection { format: Some("m4a"), container: "mp4".into(), codec_hint: hint };
+        return MagicDetection {
+            format: Some("m4a"),
+            container: "mp4".into(),
+            codec_hint: hint,
+        };
     }
-    if ascii(bytes, 0, 4) == "FORM" && (ascii(bytes, 8, 4) == "AIFF" || ascii(bytes, 8, 4) == "AIFC") {
-        return MagicDetection { format: Some("aiff"), container: "aiff".into(), codec_hint: None };
+    if ascii(bytes, 0, 4) == "FORM"
+        && (ascii(bytes, 8, 4) == "AIFF" || ascii(bytes, 8, 4) == "AIFC")
+    {
+        return MagicDetection {
+            format: Some("aiff"),
+            container: "aiff".into(),
+            codec_hint: None,
+        };
     }
     if ascii(bytes, 0, 4) == "MAC " {
-        return MagicDetection { format: Some("ape"), container: "ape".into(), codec_hint: None };
+        return MagicDetection {
+            format: Some("ape"),
+            container: "ape".into(),
+            codec_hint: None,
+        };
     }
     if ascii(bytes, 0, 5) == "#!AMR" {
-        return MagicDetection { format: Some("amr"), container: "amr".into(), codec_hint: None };
+        return MagicDetection {
+            format: Some("amr"),
+            container: "amr".into(),
+            codec_hint: None,
+        };
     }
     const ASF_GUID: [u8; 16] = [
         0x30, 0x26, 0xb2, 0x75, 0x8e, 0x66, 0xcf, 0x11, 0xa6, 0xd9, 0x00, 0xaa, 0x00, 0x62, 0xce,
         0x6c,
     ];
     if bytes.len() >= 16 && bytes[0..16] == ASF_GUID {
-        return MagicDetection { format: Some("wma"), container: "asf".into(), codec_hint: None };
+        return MagicDetection {
+            format: Some("wma"),
+            container: "asf".into(),
+            codec_hint: None,
+        };
     }
     if bytes.len() >= 6 && bytes[0] == 0x0b && bytes[1] == 0x77 {
         let bsid = (bytes[5] >> 3) & 0x1f;
         if bsid <= 16 {
-            return MagicDetection { format: Some("ac3"), container: "ac3".into(), codec_hint: None };
+            return MagicDetection {
+                format: Some("ac3"),
+                container: "ac3".into(),
+                codec_hint: None,
+            };
         }
     }
     if bytes[0] == 0xff && (bytes[1] & 0xf6) == 0xf0 {
-        return MagicDetection { format: Some("aac"), container: "adts".into(), codec_hint: None };
+        return MagicDetection {
+            format: Some("aac"),
+            container: "adts".into(),
+            codec_hint: None,
+        };
     }
     if ascii(bytes, 0, 4) == ".snd" {
-        return MagicDetection { format: None, container: "au".into(), codec_hint: None };
+        return MagicDetection {
+            format: None,
+            container: "au".into(),
+            codec_hint: None,
+        };
     }
     MagicDetection::default()
 }
@@ -803,7 +961,11 @@ fn format_from_container(container: &str, codec: &str) -> Option<&'static str> {
         return Some("aac");
     }
     if c.starts_with("mov,mp4") || c == "mp4" || c == "mov" {
-        return if codec == "alac" { Some("alac") } else { Some("m4a") };
+        return if codec == "alac" {
+            Some("alac")
+        } else {
+            Some("m4a")
+        };
     }
     if c == "asf" {
         return Some("wma");
@@ -824,7 +986,11 @@ fn format_from_container(container: &str, codec: &str) -> Option<&'static str> {
 // probe 主流程
 // ---------------------------------------------------------------------------
 
-pub fn probe_file(settings: &Settings, resource_dir: Option<&Path>, input: &Path) -> Result<ProbeResult, String> {
+pub fn probe_file(
+    settings: &Settings,
+    resource_dir: Option<&Path>,
+    input: &Path,
+) -> Result<ProbeResult, String> {
     let located = locate_result(settings, resource_dir)?;
 
     let meta = std::fs::metadata(input)
@@ -915,7 +1081,10 @@ pub fn probe_file(settings: &Settings, resource_dir: Option<&Path>, input: &Path
         codec_long_name: None,
         container: parsed.container,
         duration_ms: parsed.duration_ms,
-        bitrate_kbps: audio.as_ref().and_then(|a| a.bitrate_kbps).or(parsed.bitrate_kbps),
+        bitrate_kbps: audio
+            .as_ref()
+            .and_then(|a| a.bitrate_kbps)
+            .or(parsed.bitrate_kbps),
         sample_rate: audio.as_ref().and_then(|a| a.sample_rate),
         channels: audio.as_ref().and_then(|a| a.channels),
         channel_layout: audio.as_ref().and_then(|a| a.channel_layout.clone()),
@@ -929,7 +1098,11 @@ pub fn probe_file(settings: &Settings, resource_dir: Option<&Path>, input: &Path
             t
         },
         cover_art,
-        stream_summary: parsed.video_streams.iter().map(|v| v.description.clone()).collect(),
+        stream_summary: parsed
+            .video_streams
+            .iter()
+            .map(|v| v.description.clone())
+            .collect(),
         warnings,
     })
 }
@@ -1073,7 +1246,11 @@ pub fn run_task(run: TaskRun) {
                                 pending.clear();
                                 if !line.is_empty() {
                                     log_ring.lock().unwrap().push(line.clone());
-                                    emit(&log_app, "task://log", serde_json::json!({ "taskId": log_id, "line": line }));
+                                    emit(
+                                        &log_app,
+                                        "task://log",
+                                        serde_json::json!({ "taskId": log_id, "line": line }),
+                                    );
                                 }
                             }
                         } else {
@@ -1088,7 +1265,11 @@ pub fn run_task(run: TaskRun) {
             let line = String::from_utf8_lossy(&pending).trim().to_string();
             if !line.is_empty() {
                 log_ring.lock().unwrap().push(line.clone());
-                emit(&log_app, "task://log", serde_json::json!({ "taskId": log_id, "line": line }));
+                emit(
+                    &log_app,
+                    "task://log",
+                    serde_json::json!({ "taskId": log_id, "line": line }),
+                );
             }
         }
     });
@@ -1145,7 +1326,10 @@ pub fn run_task(run: TaskRun) {
                 "elapsedMs": elapsed_ms,
             }),
         );
-        crate::logging::info("task", &format!("{task_id} 完成，耗时 {elapsed_ms}ms，输出 {size_bytes} 字节"));
+        crate::logging::info(
+            "task",
+            &format!("{task_id} 完成，耗时 {elapsed_ms}ms，输出 {size_bytes} 字节"),
+        );
         if run.notify {
             let _ = crate::commands::show_notification(
                 &run.app,
@@ -1206,34 +1390,55 @@ mod tests {
         assert_eq!(classify_stderr(e2), "E_CORRUPT_FILE");
         let e3 = "Error while decoding stream #0:0: Invalid data found when processing input";
         assert_eq!(classify_stderr(e3), "E_CORRUPT_FILE");
-        assert_eq!(classify_stderr("error opening input file x.mp3"), "E_CORRUPT_FILE");
+        assert_eq!(
+            classify_stderr("error opening input file x.mp3"),
+            "E_CORRUPT_FILE"
+        );
     }
 
     #[test]
     fn classifies_encoder_unavailable() {
         let e = "[libmp3lame @ 0x1] Unknown encoder 'libmp3lame'\nError initializing output stream";
         assert_eq!(classify_stderr(e), "E_ENCODER_UNAVAILABLE");
-        assert_eq!(classify_stderr("Unknown encoder 'foo'"), "E_ENCODER_UNAVAILABLE");
+        assert_eq!(
+            classify_stderr("Unknown encoder 'foo'"),
+            "E_ENCODER_UNAVAILABLE"
+        );
     }
 
     #[test]
     fn classifies_disk_full_permission_and_source() {
-        assert_eq!(classify_stderr("av_interleaved_write_frame(): No space left on device"), "E_DISK_FULL");
+        assert_eq!(
+            classify_stderr("av_interleaved_write_frame(): No space left on device"),
+            "E_DISK_FULL"
+        );
         assert_eq!(classify_stderr("disk quota exceeded"), "E_DISK_FULL");
-        assert_eq!(classify_stderr("out.wav: Permission denied"), "E_PERMISSION");
+        assert_eq!(
+            classify_stderr("out.wav: Permission denied"),
+            "E_PERMISSION"
+        );
         assert_eq!(classify_stderr("Operation not permitted"), "E_PERMISSION");
-        assert_eq!(classify_stderr("/x/y/z.mp3: No such file or directory"), "E_SOURCE_MISSING");
+        assert_eq!(
+            classify_stderr("/x/y/z.mp3: No such file or directory"),
+            "E_SOURCE_MISSING"
+        );
     }
 
     #[test]
     fn classifies_decoder_format_and_fallback() {
-        assert_eq!(classify_stderr("Unknown decoder 'pcm_zork'"), "E_DECODER_UNAVAILABLE");
+        assert_eq!(
+            classify_stderr("Unknown decoder 'pcm_zork'"),
+            "E_DECODER_UNAVAILABLE"
+        );
         assert_eq!(
             classify_stderr("Unable to find a suitable output format for 'out.xyz'"),
             "E_UNSUPPORTED_FORMAT"
         );
         assert_eq!(classify_stderr("Cannot allocate memory"), "E_OUT_OF_MEMORY");
-        assert_eq!(classify_stderr("something totally unexpected happened"), "E_UNKNOWN");
+        assert_eq!(
+            classify_stderr("something totally unexpected happened"),
+            "E_UNKNOWN"
+        );
     }
 
     #[test]
@@ -1241,7 +1446,10 @@ mod tests {
         for (code, _, _) in ERROR_MESSAGES {
             assert!(!message_for_code(code).is_empty(), "{code}");
         }
-        assert_eq!(message_for_code("E_DISK_FULL"), "磁盘空间不足，请清理后重试");
+        assert_eq!(
+            message_for_code("E_DISK_FULL"),
+            "磁盘空间不足，请清理后重试"
+        );
     }
 
     // 探测解析（对齐 parseProbe.ts）
@@ -1266,8 +1474,14 @@ Input #0, mp3, from 'song.mp3':\n  Metadata:\n    title           : Test Title\n
         assert!(matches!(a.bit_depth, Some(BitDepth::Float32("f32"))));
         assert_eq!(a.bitrate_kbps, Some(320));
         assert_eq!(p.tags.get("title").map(|s| s.as_str()), Some("Test Title"));
-        assert_eq!(p.tags.get("artist").map(|s| s.as_str()), Some("Some Artist"));
-        assert_eq!(a.tags.get("handler_name").map(|s| s.as_str()), Some("SoundHandler"));
+        assert_eq!(
+            p.tags.get("artist").map(|s| s.as_str()),
+            Some("Some Artist")
+        );
+        assert_eq!(
+            a.tags.get("handler_name").map(|s| s.as_str()),
+            Some("SoundHandler")
+        );
         assert!(p.warnings.is_empty(), "{:?}", p.warnings);
     }
 
@@ -1299,18 +1513,23 @@ Input #0, ogg, from 'cover.ogg':\n\
 
     #[test]
     fn parses_audio_stream_channel_counts() {
-        let p = parse_audio_stream("  Stream #0:0: Audio: pcm_s16le, 48000 Hz, 5.1, s16, 4608 kb/s").unwrap();
+        let p =
+            parse_audio_stream("  Stream #0:0: Audio: pcm_s16le, 48000 Hz, 5.1, s16, 4608 kb/s")
+                .unwrap();
         assert_eq!(p.channels, Some(6));
         assert_eq!(p.channel_layout.as_deref(), Some("5.1"));
         assert!(matches!(p.bit_depth, Some(BitDepth::Int(16))));
         assert_eq!(p.codec, "pcm_s16le");
 
-        let p2 = parse_audio_stream("  Stream #0:0: Audio: aac (LC), 44100 Hz, mono, fltp, 64 kb/s").unwrap();
+        let p2 =
+            parse_audio_stream("  Stream #0:0: Audio: aac (LC), 44100 Hz, mono, fltp, 64 kb/s")
+                .unwrap();
         assert_eq!(p2.codec, "aac"); // 去掉 (LC)
         assert_eq!(p2.channels, Some(1));
         assert_eq!(p2.channel_layout.as_deref(), Some("mono"));
 
-        let p3 = parse_audio_stream("  Stream #0:0: Audio: flac, 96000 Hz, 2 channels, s32").unwrap();
+        let p3 =
+            parse_audio_stream("  Stream #0:0: Audio: flac, 96000 Hz, 2 channels, s32").unwrap();
         assert_eq!(p3.channels, Some(2));
         assert!(matches!(p3.bit_depth, Some(BitDepth::Int(32))));
     }
@@ -1327,7 +1546,10 @@ Input #0, ogg, from 'cover.ogg':\n\
         assert_eq!(detect_format(b"ID3\x04\x00\x00").format, Some("mp3"));
         assert_eq!(detect_format(b"MAC \x00\x00\x01\x00").format, Some("ape"));
         assert_eq!(detect_format(b"#!AMR\x0a").format, Some("amr"));
-        assert_eq!(detect_format(b"FORM\x00\x00\x00\x1cAIFF").format, Some("aiff"));
+        assert_eq!(
+            detect_format(b"FORM\x00\x00\x00\x1cAIFF").format,
+            Some("aiff")
+        );
 
         let mut ogg = b"OggS\x00\x02".to_vec();
         ogg.extend_from_slice(&[0u8; 30]);
@@ -1345,8 +1567,14 @@ Input #0, ogg, from 'cover.ogg':\n\
         assert_eq!(expected_format_for_ext("MP4"), Some("m4a"));
         assert_eq!(expected_format_for_ext("xyz"), None);
         assert_eq!(format_from_container("ogg", "opus"), Some("opus"));
-        assert_eq!(format_from_container("mov,mp4,m4a,3gp,3g2,mj2", "aac"), Some("m4a"));
-        assert_eq!(format_from_container("mov,mp4,m4a,3gp,3g2,mj2", "alac"), Some("alac"));
+        assert_eq!(
+            format_from_container("mov,mp4,m4a,3gp,3g2,mj2", "aac"),
+            Some("m4a")
+        );
+        assert_eq!(
+            format_from_container("mov,mp4,m4a,3gp,3g2,mj2", "alac"),
+            Some("alac")
+        );
         assert_eq!(format_from_container("asf", "wmav2"), Some("wma"));
         assert_eq!(format_from_container("matroska,webm", "aac"), None);
     }
@@ -1354,7 +1582,10 @@ Input #0, ogg, from 'cover.ogg':\n\
     #[test]
     fn version_banner_parsing() {
         let banner = "ffmpeg version 6.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2023 the FFmpeg developers\nconfiguration: ...\n";
-        assert_eq!(parse_version_banner(banner), "6.1.1-essentials_build-www.gyan.dev");
+        assert_eq!(
+            parse_version_banner(banner),
+            "6.1.1-essentials_build-www.gyan.dev"
+        );
         let n_build = "ffmpeg version N-110187-g123abcde Copyright (c) 2000-2023\n";
         assert_eq!(parse_version_banner(n_build), "N-110187-g123abcde");
     }
@@ -1412,7 +1643,10 @@ Input #0, ogg, from 'cover.ogg':\n\
             other => panic!("声道布局取值异常：{other:?}"),
         }
         assert!(matches!(result.bit_depth, Some(BitDepth::Int(16))));
-        assert_eq!(result.file_size_bytes, std::fs::metadata(&wav).unwrap().len());
+        assert_eq!(
+            result.file_size_bytes,
+            std::fs::metadata(&wav).unwrap().len()
+        );
         let dur = result.duration_ms.unwrap_or(0);
         assert!((900..1200).contains(&dur), "时长应约 1s，实际 {dur}ms");
         assert!(result.extension_mismatch.is_none());
@@ -1430,7 +1664,10 @@ Input #0, ogg, from 'cover.ogg':\n\
         let caps = capabilities(&settings, None).expect("能力检测应成功");
         assert_eq!(caps.engine.kind, "native");
         assert!(!caps.engine.version.is_empty(), "版本必须是真实探测结果");
-        assert!(caps.encoders.contains(&"libmp3lame".to_string()), "本机 essentials 构建应带 libmp3lame");
+        assert!(
+            caps.encoders.contains(&"libmp3lame".to_string()),
+            "本机 essentials 构建应带 libmp3lame"
+        );
         assert!(caps.muxers.contains(&"mp3".to_string()));
         assert!(
             caps.filters.contains(&"afade".to_string()),
@@ -1452,11 +1689,21 @@ Input #0, ogg, from 'cover.ogg':\n\
         let out = tmp.join("out.mp3");
         let ok = Command::new("ffmpeg")
             .args([
-                "-hide_banner", "-loglevel", "error", "-f", "lavfi",
-                "-i", "sine=frequency=440:duration=2", "-y", &src.to_string_lossy(),
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=2",
+                "-y",
+                &src.to_string_lossy(),
             ])
-            .stdout(Stdio::null()).stderr(Stdio::null()).status()
-            .map(|s| s.success()).unwrap_or(false);
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
         if !ok {
             let _ = std::fs::remove_dir_all(&tmp);
             return; // 无 ffmpeg：跳过
@@ -1464,22 +1711,41 @@ Input #0, ogg, from 'cover.ogg':\n\
 
         // 与 start_task 相同的注入方式：-progress pipe:1 放在最前
         let mut child = Command::new("ffmpeg")
-            .args(["-progress", "pipe:1", "-hide_banner", "-nostdin", "-y",
-                "-i", &src.to_string_lossy(), "-c:a", "libmp3lame", "-f", "mp3",
-                &out.to_string_lossy()])
-            .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()
+            .args([
+                "-progress",
+                "pipe:1",
+                "-hide_banner",
+                "-nostdin",
+                "-y",
+                "-i",
+                &src.to_string_lossy(),
+                "-c:a",
+                "libmp3lame",
+                "-f",
+                "mp3",
+                &out.to_string_lossy(),
+            ])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
             .expect("spawn ffmpeg");
         let stdout = child.stdout.take().unwrap();
         let mut state = progress::ProgressUpdate::default();
         use std::io::BufRead;
-        for line in std::io::BufReader::new(stdout).lines().map_while(Result::ok) {
+        for line in std::io::BufReader::new(stdout)
+            .lines()
+            .map_while(Result::ok)
+        {
             progress::merge_line(&mut state, &line);
         }
         let status = child.wait().unwrap();
         assert!(status.success(), "转换应成功");
         assert!(state.finished, "应收到 progress=end");
         let us = state.time_us.unwrap_or(0);
-        assert!((1_800_000..=2_500_000).contains(&us), "时长约 2s，实际 out_time_us={us}");
+        assert!(
+            (1_800_000..=2_500_000).contains(&us),
+            "时长约 2s，实际 out_time_us={us}"
+        );
         assert!(out.exists());
         let _ = std::fs::remove_dir_all(&tmp);
     }

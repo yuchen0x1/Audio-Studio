@@ -47,8 +47,14 @@ export function CoverArtView({ cover, src, maxSize = 160, alt }: CoverArtViewPro
   const [url, setUrl] = useState<string | null>(src ?? null);
 
   useEffect(() => {
-    if (src) { setUrl(src); return; }
-    if (!cover) { setUrl(null); return; }
+    if (src) {
+      setUrl(src);
+      return;
+    }
+    if (!cover) {
+      setUrl(null);
+      return;
+    }
     const next = coverBlobUrl(cover);
     setUrl(next);
     if (!next) return;

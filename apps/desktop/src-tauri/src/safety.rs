@@ -79,12 +79,18 @@ pub fn validate_output_path(p: &str) -> Result<(), String> {
     }
     for c in name.chars() {
         if matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*') {
-            return Err(err("E_PATH_UNSAFE", &format!("输出文件名包含非法字符 \"{c}\"")));
+            return Err(err(
+                "E_PATH_UNSAFE",
+                &format!("输出文件名包含非法字符 \"{c}\""),
+            ));
         }
     }
     let stem = name.split('.').next().unwrap_or("").to_lowercase();
     if WINDOWS_RESERVED.contains(&stem.as_str()) {
-        return Err(err("E_PATH_UNSAFE", &format!("输出文件名使用了 Windows 保留名 \"{name}\"")));
+        return Err(err(
+            "E_PATH_UNSAFE",
+            &format!("输出文件名使用了 Windows 保留名 \"{name}\""),
+        ));
     }
     Ok(())
 }
@@ -142,7 +148,11 @@ pub fn same_path(a: &str, b: &str) -> bool {
             .map(|n| n.to_string_lossy().to_lowercase())
             .unwrap_or_default();
         match p.parent().and_then(|d| d.canonicalize().ok()) {
-            Some(dir) => format!("{}/{}", dir.display().to_string().replace('\\', "/").to_lowercase(), name),
+            Some(dir) => format!(
+                "{}/{}",
+                dir.display().to_string().replace('\\', "/").to_lowercase(),
+                name
+            ),
             None => normalize_key(&p.to_string_lossy()),
         }
     };
@@ -226,7 +236,10 @@ pub fn prepare_output(args: &[String], output_path: &str) -> Result<PreparedOutp
 
     // 无文件输出（测量作业 / 前端未给 outputPath）
     if output_path.trim().is_empty() || output_path.trim() == "-" {
-        return Ok(PreparedOutput { args: args.to_vec(), final_output: None });
+        return Ok(PreparedOutput {
+            args: args.to_vec(),
+            final_output: None,
+        });
     }
 
     validate_output_path(output_path)?;
@@ -234,7 +247,9 @@ pub fn prepare_output(args: &[String], output_path: &str) -> Result<PreparedOutp
         if same_path(output_path, p) {
             return Err(err(
                 "E_INVALID_PARAM",
-                &format!("输入与输出是同一个文件，已拒绝（保护源文件）：{output_path}（参数 #{idx}）"),
+                &format!(
+                    "输入与输出是同一个文件，已拒绝（保护源文件）：{output_path}（参数 #{idx}）"
+                ),
             ));
         }
     }
@@ -269,12 +284,18 @@ pub fn prepare_output(args: &[String], output_path: &str) -> Result<PreparedOutp
     // 替换后再次确认输入 ≠ 输出
     for (idx, p) in collect_input_paths(&new_args) {
         if same_path(&final_str, &p) {
-            return Err(err("E_INVALID_PARAM", "输入与输出是同一个文件，已拒绝（保护源文件）"));
+            return Err(err(
+                "E_INVALID_PARAM",
+                "输入与输出是同一个文件，已拒绝（保护源文件）",
+            ));
         }
         let _ = idx;
     }
 
-    Ok(PreparedOutput { args: new_args, final_output: Some(final_path) })
+    Ok(PreparedOutput {
+        args: new_args,
+        final_output: Some(final_path),
+    })
 }
 
 #[cfg(test)]
@@ -338,9 +359,13 @@ mod tests {
         let src = dir.join("song.mp3");
         fs::write(&src, "x").unwrap();
         let a = args(&[
-            "-hide_banner", "-nostdin", "-y",
-            "-i", src.to_str().unwrap(),
-            "-c:a", "libmp3lame",
+            "-hide_banner",
+            "-nostdin",
+            "-y",
+            "-i",
+            src.to_str().unwrap(),
+            "-c:a",
+            "libmp3lame",
             src.to_str().unwrap(),
         ]);
         let e = prepare_output(&a, src.to_str().unwrap()).unwrap_err();
@@ -378,7 +403,10 @@ mod tests {
         let final_path = prepared.final_output.unwrap();
         assert_eq!(final_path, dir.join("mix (1).mp3"));
         // 参数向量中的输出已被替换为去重后的路径
-        assert_eq!(prepared.args.last().unwrap(), &final_path.to_string_lossy().to_string());
+        assert_eq!(
+            prepared.args.last().unwrap(),
+            &final_path.to_string_lossy().to_string()
+        );
         // 第二次冲突 → (2)
         fs::write(dir.join("mix (1).mp3"), "old2").unwrap();
         let p2 = unique_output_path(&out);
@@ -404,7 +432,15 @@ mod tests {
         let dir = tmp("replace");
         let out = dir.join("final.flac");
         let out_str = out.to_string_lossy().into_owned();
-        let a = args(&["-hide_banner", "-y", "-i", "in.wav", "-c:a", "flac", &out_str]);
+        let a = args(&[
+            "-hide_banner",
+            "-y",
+            "-i",
+            "in.wav",
+            "-c:a",
+            "flac",
+            &out_str,
+        ]);
         let prepared = prepare_output(&a, &out_str).unwrap();
         assert_eq!(prepared.args.last().unwrap(), &out_str);
         assert_eq!(prepared.final_output, Some(out));
@@ -414,7 +450,17 @@ mod tests {
     #[test]
     fn null_output_measure_args_left_untouched() {
         // `-f null -`：测量作业无真实输出文件
-        let a = args(&["-hide_banner", "-y", "-i", "in.wav", "-af", "volumedetect", "-f", "null", "-"]);
+        let a = args(&[
+            "-hide_banner",
+            "-y",
+            "-i",
+            "in.wav",
+            "-af",
+            "volumedetect",
+            "-f",
+            "null",
+            "-",
+        ]);
         let prepared = prepare_output(&a, "-").unwrap();
         assert!(prepared.final_output.is_none());
         assert_eq!(prepared.args, a);

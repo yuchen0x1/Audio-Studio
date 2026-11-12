@@ -19,9 +19,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.audiostudio.app.R
 import com.audiostudio.app.Tab
 import com.audiostudio.app.data.TaskStatus
 import com.audiostudio.app.ui.MainViewModel
@@ -52,30 +54,30 @@ fun HomeScreen(vm: MainViewModel, modifier: Modifier = Modifier, onNavigate: (Ta
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Audio Studio", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        Text("本地音频转换 · 不上传任何文件", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.home_subtitle), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         // ---- 引擎状态 ----
-        SectionCard(title = "引擎状态") {
+        SectionCard(title = stringResource(R.string.home_engine_title)) {
             if (engineError != null) {
                 Text("⚠ $engineError", color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
             } else if (caps == null) {
-                Text("正在初始化 FFmpeg（能力检测中）…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Text(stringResource(R.string.home_engine_init), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             } else {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     StatItem("FFmpeg", caps!!.ffmpegVersion, AccentBlue)
-                    StatItem("可编码格式", "${caps!!.formats.count { it.canEncode }} / ${caps!!.formats.size}", SuccessGreen)
-                    StatItem("编码器", "${caps!!.encoders.size}", AccentPurple)
+                    StatItem(stringResource(R.string.home_stat_formats), "${caps!!.formats.count { it.canEncode }} / ${caps!!.formats.size}", SuccessGreen)
+                    StatItem(stringResource(R.string.home_stat_encoders), "${caps!!.encoders.size}", AccentPurple)
                 }
             }
         }
 
         // ---- 任务概览 ----
-        SectionCard(title = "任务概览") {
+        SectionCard(title = stringResource(R.string.home_tasks_title)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatItem("排队", "$queued", MaterialTheme.colorScheme.onSurfaceVariant, Modifier.weight(1f))
-                StatItem("进行中", "$running", AccentBlue, Modifier.weight(1f))
-                StatItem("已完成", "$done", SuccessGreen, Modifier.weight(1f))
-                StatItem("失败", "$failed", if (failed > 0) WarningOrange else MaterialTheme.colorScheme.onSurfaceVariant, Modifier.weight(1f))
+                StatItem(stringResource(R.string.home_stat_queued), "$queued", MaterialTheme.colorScheme.onSurfaceVariant, Modifier.weight(1f))
+                StatItem(stringResource(R.string.home_stat_active), "$running", AccentBlue, Modifier.weight(1f))
+                StatItem(stringResource(R.string.home_stat_done), "$done", SuccessGreen, Modifier.weight(1f))
+                StatItem(stringResource(R.string.home_stat_failed), "$failed", if (failed > 0) WarningOrange else MaterialTheme.colorScheme.onSurfaceVariant, Modifier.weight(1f))
             }
         }
 
@@ -84,14 +86,14 @@ fun HomeScreen(vm: MainViewModel, modifier: Modifier = Modifier, onNavigate: (Ta
             onClick = { onNavigate(Tab.CONVERT) },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("选择文件，开始转换")
+            Text(stringResource(R.string.home_quick_start))
         }
 
         // ---- 最近任务 ----
         val recent = tasks.take(3)
-        SectionCard(title = "最近任务") {
+        SectionCard(title = stringResource(R.string.home_recent_title)) {
             if (recent.isEmpty()) {
-                Hint("暂无任务。选择音频文件后会在这里显示真实进度。")
+                Hint(stringResource(R.string.home_recent_empty))
             } else {
                 recent.forEach { t ->
                     Row(
@@ -109,7 +111,7 @@ fun HomeScreen(vm: MainViewModel, modifier: Modifier = Modifier, onNavigate: (Ta
                                 maxLines = 1,
                             )
                             Text(
-                                "${t.kindZh()} → ${t.targetFormat.uppercase()}",
+                                "${stringResource(t.kindLabelRes())} → ${t.targetFormat.uppercase()}",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 11.sp,
                             )
@@ -121,11 +123,11 @@ fun HomeScreen(vm: MainViewModel, modifier: Modifier = Modifier, onNavigate: (Ta
         }
 
         // ---- 安全提示 ----
-        SectionCard(title = "安全说明") {
-            Hint("· 所有转换在本机完成，音频不会上传到任何服务器")
-            Hint("· 只读取你通过系统文件选择器主动选择的文件，不扫描全盘")
-            Hint("· 单文件超过 500MB 时会提示风险；转换前会做内存与磁盘预检")
-            Hint("· 源文件只读打开，失败不会破坏原文件")
+        SectionCard(title = stringResource(R.string.home_security_title)) {
+            Hint(stringResource(R.string.home_security_1))
+            Hint(stringResource(R.string.home_security_2))
+            Hint(stringResource(R.string.home_security_3))
+            Hint(stringResource(R.string.home_security_4))
         }
     }
 }

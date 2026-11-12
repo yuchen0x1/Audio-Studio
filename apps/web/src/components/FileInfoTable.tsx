@@ -51,19 +51,26 @@ export function FileInfoTable({ probe, fileName }: FileInfoTableProps) {
   const label = lang === 'en' ? 'File name' : '文件名';
 
   const fmtDef = probe.format ? FORMATS[probe.format] : null;
-  const bitDepth = probe.bitDepth === undefined
-    ? '--'
-    : probe.bitDepth === 'f32' ? '32-bit float' : `${probe.bitDepth} bit`;
+  const bitDepth =
+    probe.bitDepth === undefined
+      ? '--'
+      : probe.bitDepth === 'f32'
+        ? '32-bit float'
+        : `${probe.bitDepth} bit`;
 
   const rows: Row[] = [
     { key: 'name', label, value: fileName ?? '--' },
     {
       key: 'format',
       label: S.format,
-      value: fmtDef ? `${fmtDef.label} (${probe.format})` : (probe.container || S.unknown),
+      value: fmtDef ? `${fmtDef.label} (${probe.format})` : probe.container || S.unknown,
     },
     { key: 'container', label: S.container, value: probe.container || S.unknown },
-    { key: 'codec', label: S.codec, value: probe.codecLongName ? `${probe.codec} — ${probe.codecLongName}` : probe.codec },
+    {
+      key: 'codec',
+      label: S.codec,
+      value: probe.codecLongName ? `${probe.codec} — ${probe.codecLongName}` : probe.codec,
+    },
     { key: 'duration', label: S.duration, value: fmtDuration(probe.durationMs) },
     { key: 'bitrate', label: S.bitrate, value: fmtBitrate(probe.bitrateKbps) },
     { key: 'sampleRate', label: S.sampleRate, value: fmtSampleRate(probe.sampleRate) },
@@ -79,7 +86,9 @@ export function FileInfoTable({ probe, fileName }: FileInfoTableProps) {
           {rows.map((r) => (
             <tr key={r.key}>
               <td style={{ width: 160, color: 'var(--fg-3)', whiteSpace: 'nowrap' }}>{r.label}</td>
-              <td className="mono" style={{ color: 'var(--fg)', wordBreak: 'break-word' }}>{r.value}</td>
+              <td className="mono" style={{ color: 'var(--fg)', wordBreak: 'break-word' }}>
+                {r.value}
+              </td>
             </tr>
           ))}
         </tbody>

@@ -19,5 +19,12 @@ export default defineConfig({
   cacheDir: './node_modules/.vitest-cache',
   test: {
     environment: 'node',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.ts'],
+      exclude: ['src/__tests__/**', 'src/index.ts'],
+    },
   },
 });

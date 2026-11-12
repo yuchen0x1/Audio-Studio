@@ -8,9 +8,21 @@
  */
 import { create } from 'zustand';
 import {
-  AudioSource, EncodeParams, JobResult, ProbeResult, ResourceEstimate,
-  TaskRecord, applyProgress, buildOutputFileName, createTask, defaultParamsFor,
-  deriveParams, transition, validateParams, EngineError, makeEngineError,
+  AudioSource,
+  EncodeParams,
+  JobResult,
+  ProbeResult,
+  ResourceEstimate,
+  TaskRecord,
+  applyProgress,
+  buildOutputFileName,
+  createTask,
+  defaultParamsFor,
+  deriveParams,
+  transition,
+  validateParams,
+  EngineError,
+  makeEngineError,
   getFormat,
 } from '@audio-studio/shared';
 import { getEngine, initEngine, engineInitialized, setEngineConcurrency } from '../engine';
@@ -84,13 +96,17 @@ export const useSession = create<SessionState>((set, get) => ({
 
   addFiles: async (sources) => {
     if (!sources.length) return;
-    const { defaultFormat, defaultBitrateKbps, filenameTemplate, outputDirName } = useSettings.getState();
+    const { defaultFormat, defaultBitrateKbps, filenameTemplate, outputDirName } =
+      useSettings.getState();
     const newFiles: SessionFile[] = [];
 
     for (const src of sources) {
       // 去重：同名同大小
       const dup = get().files.some(
-        (f) => f.source.name === src.name && f.source.sizeBytes === src.sizeBytes && f.source.sizeBytes > 0,
+        (f) =>
+          f.source.name === src.name &&
+          f.source.sizeBytes === src.sizeBytes &&
+          f.source.sizeBytes > 0,
       );
       if (dup) continue;
       const params = defaultParamsFor(defaultFormat);
@@ -129,9 +145,9 @@ export const useSession = create<SessionState>((set, get) => ({
 
   setFileParams: (fileId, patch) => {
     set((s) => ({
-      files: s.files.map((f) => (f.source.id === fileId
-        ? { ...f, params: { ...f.params, ...patch } }
-        : f)),
+      files: s.files.map((f) =>
+        f.source.id === fileId ? { ...f, params: { ...f.params, ...patch } } : f,
+      ),
     }));
   },
 
@@ -192,9 +208,8 @@ export const useSession = create<SessionState>((set, get) => ({
     set((s) => ({
       tasks: s.tasks.map((t) => {
         if (t.status === 'queued' || t.status === 'paused') {
-          const status = t.status === 'paused'
-            ? transition({ status: t.status }, 'queued')
-            : t.status;
+          const status =
+            t.status === 'paused' ? transition({ status: t.status }, 'queued') : t.status;
           return { ...t, status, armed: true, intent: undefined };
         }
         return t;
@@ -208,12 +223,15 @@ export const useSession = create<SessionState>((set, get) => ({
     const file = st.files.find((f) => f.source.id === fileId);
     if (!file) return;
     // 已有未完成任务 → 直接启动；否则创建
-    let task = st.tasks.find((t) => t.fileId === fileId && ['queued', 'paused'].includes(t.status));
+    const task = st.tasks.find(
+      (t) => t.fileId === fileId && ['queued', 'paused'].includes(t.status),
+    );
     if (!task) {
-      const fresh = createTask<'convert', EncodeParams>('convert', file.source.name, { ...file.params });
+      const fresh = createTask<'convert', EncodeParams>('convert', file.source.name, {
+        ...file.params,
+      });
       const rec: SessionTask = { ...fresh, fileId, armed: true, params: { ...file.params } };
       set((s) => ({ tasks: [...s.tasks, rec] }));
-      task = rec;
     } else {
       get().startTask(task.id);
       return;
@@ -226,9 +244,11 @@ export const useSession = create<SessionState>((set, get) => ({
     if (!task) return;
     if (task.status === 'queued') {
       set((s) => ({
-        tasks: s.tasks.map((t) => (t.id === taskId
-          ? { ...t, armed: false, status: transition({ status: t.status }, 'paused') }
-          : t)),
+        tasks: s.tasks.map((t) =>
+          t.id === taskId
+            ? { ...t, armed: false, status: transition({ status: t.status }, 'paused') }
+            : t,
+        ),
       }));
       return;
     }
@@ -236,7 +256,9 @@ export const useSession = create<SessionState>((set, get) => ({
       set((s) => ({
         tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, intent: 'pause', armed: false } : t)),
       }));
-      void getEngine().cancel(taskId).catch(() => undefined);
+      void getEngine()
+        .cancel(taskId)
+        .catch(() => undefined);
     }
   },
 
@@ -244,9 +266,16 @@ export const useSession = create<SessionState>((set, get) => ({
     const task = get().tasks.find((t) => t.id === taskId);
     if (!task || task.status !== 'paused') return;
     set((s) => ({
-      tasks: s.tasks.map((t) => (t.id === taskId
-        ? { ...t, status: transition({ status: t.status }, 'queued'), armed: true, intent: undefined }
-        : t)),
+      tasks: s.tasks.map((t) =>
+        t.id === taskId
+          ? {
+              ...t,
+              status: transition({ status: t.status }, 'queued'),
+              armed: true,
+              intent: undefined,
+            }
+          : t,
+      ),
     }));
     schedulePump();
   },
@@ -256,9 +285,16 @@ export const useSession = create<SessionState>((set, get) => ({
     if (!task) return;
     if (task.status === 'queued' || task.status === 'paused') {
       set((s) => ({
-        tasks: s.tasks.map((t) => (t.id === taskId
-          ? { ...t, armed: false, status: transition({ status: t.status }, 'cancelled'), finishedAt: Date.now() }
-          : t)),
+        tasks: s.tasks.map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                armed: false,
+                status: transition({ status: t.status }, 'cancelled'),
+                finishedAt: Date.now(),
+              }
+            : t,
+        ),
       }));
       return;
     }
@@ -266,7 +302,9 @@ export const useSession = create<SessionState>((set, get) => ({
       set((s) => ({
         tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, intent: 'cancel', armed: false } : t)),
       }));
-      void getEngine().cancel(taskId).catch(() => undefined);
+      void getEngine()
+        .cancel(taskId)
+        .catch(() => undefined);
     }
   },
 
@@ -328,9 +366,9 @@ async function probeOne(fileId: string): Promise<void> {
     const estimate = engine.estimate(file.source);
 
     useSession.setState((s) => ({
-      files: s.files.map((f) => (f.source.id === fileId
-        ? { ...f, probe, estimate, probing: false }
-        : f)),
+      files: s.files.map((f) =>
+        f.source.id === fileId ? { ...f, probe, estimate, probing: false } : f,
+      ),
     }));
 
     // 用真实源信息推导合理默认参数（采样率/声道保持）
@@ -349,14 +387,17 @@ async function probeOne(fileId: string): Promise<void> {
     }
     for (const w of estimate.warnings) toast.warning('资源预检', w);
     if (probe.extensionMismatch) {
-      toast.warning('格式提示', `${file.source.name}：${probe.warnings.find((x) => x.includes('不一致')) ?? '扩展名与实际格式不一致'}`);
+      toast.warning(
+        '格式提示',
+        `${file.source.name}：${probe.warnings.find((x) => x.includes('不一致')) ?? '扩展名与实际格式不一致'}`,
+      );
     }
   } catch (e) {
     const err = errOf(e);
     useSession.setState((s) => ({
-      files: s.files.map((f) => (f.source.id === fileId
-        ? { ...f, probing: false, probeError: err.message }
-        : f)),
+      files: s.files.map((f) =>
+        f.source.id === fileId ? { ...f, probing: false, probeError: err.message } : f,
+      ),
     }));
     toast.error('文件分析失败', `${file.source.name}: ${err.message}`);
   }
@@ -375,7 +416,9 @@ function schedulePump(): void {
 async function pump(): Promise<void> {
   const state = useSession.getState();
   const concurrency = Math.max(1, Math.min(4, useSettings.getState().concurrency));
-  let running = state.tasks.filter((t) => t.status === 'running' || t.status === 'preparing').length;
+  let running = state.tasks.filter(
+    (t) => t.status === 'running' || t.status === 'preparing',
+  ).length;
 
   for (const task of state.tasks) {
     if (running >= concurrency) break;
@@ -414,7 +457,10 @@ async function execute(taskId: string): Promise<void> {
   const params = { ...file.params };
   const errors = validateParams(params);
   if (errors.length) {
-    markFailed(taskId, makeEngineError('E_INVALID_PARAM', errors.join('；'), { message: errors[0] }));
+    markFailed(
+      taskId,
+      makeEngineError('E_INVALID_PARAM', errors.join('；'), { message: errors[0] }),
+    );
     return;
   }
 
@@ -457,9 +503,7 @@ async function execute(taskId: string): Promise<void> {
         const next = { ...t };
         applyProgress(next, p);
         useSession.setState((s) => ({
-          tasks: s.tasks.map((x) => (x.id === taskId
-            ? { ...x, progress: next.progress }
-            : x)),
+          tasks: s.tasks.map((x) => (x.id === taskId ? { ...x, progress: next.progress } : x)),
         }));
       },
     });
@@ -471,11 +515,23 @@ async function execute(taskId: string): Promise<void> {
       status: transition({ status: x.status }, 'completed'),
       finishedAt: Date.now(),
       result,
-      progress: { ...x.progress, ratio: 1, processedMs: x.progress.totalMs || x.progress.processedMs },
+      progress: {
+        ...x.progress,
+        ratio: 1,
+        processedMs: x.progress.totalMs || x.progress.processedMs,
+      },
       intent: undefined,
     }));
 
-    const rec = buildHistoryRecord(taskId, 'completed', result, params, file, outputFileName, performance.now() - t0);
+    const rec = buildHistoryRecord(
+      taskId,
+      'completed',
+      result,
+      params,
+      file,
+      outputFileName,
+      performance.now() - t0,
+    );
     void useHistory.getState().add(rec);
 
     // 通知
@@ -500,7 +556,15 @@ async function execute(taskId: string): Promise<void> {
         intent: undefined,
       }));
       if (target === 'cancelled') {
-        const rec = buildHistoryRecord(taskId, 'cancelled', undefined, params, file, outputFileName, performance.now() - t0);
+        const rec = buildHistoryRecord(
+          taskId,
+          'cancelled',
+          undefined,
+          params,
+          file,
+          outputFileName,
+          performance.now() - t0,
+        );
         void useHistory.getState().add(rec);
       }
     } else {
@@ -535,7 +599,16 @@ function markFailed(
   }));
   toast.error('转换失败', `${file?.source.name ?? taskId}: ${err.message}`);
   if (params && file && outputFileName) {
-    const rec = buildHistoryRecord(taskId, 'failed', undefined, params, file, outputFileName, elapsedMs ?? 0, err.message);
+    const rec = buildHistoryRecord(
+      taskId,
+      'failed',
+      undefined,
+      params,
+      file,
+      outputFileName,
+      elapsedMs ?? 0,
+      err.message,
+    );
     void useHistory.getState().add(rec);
   }
 }
@@ -575,12 +648,14 @@ export async function reexecuteFromHistory(rec: HistoryRecord): Promise<boolean>
   const state = useSession.getState();
   if (rec.sourcePath && isDesktop) {
     const { makeSourceId } = await import('../platform');
-    await state.addFiles([{
-      id: makeSourceId(),
-      name: baseName(rec.sourcePath),
-      sizeBytes: 0,
-      path: rec.sourcePath,
-    }]);
+    await state.addFiles([
+      {
+        id: makeSourceId(),
+        name: baseName(rec.sourcePath),
+        sizeBytes: 0,
+        path: rec.sourcePath,
+      },
+    ]);
     const added = useSession.getState().files[useSession.getState().files.length - 1];
     useSession.getState().setFileParams(added.source.id, { ...rec.params });
     await useSession.getState().startForFile(added.source.id);

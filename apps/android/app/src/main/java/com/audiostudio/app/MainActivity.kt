@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCut
@@ -29,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import com.audiostudio.app.ui.MainViewModel
 import com.audiostudio.app.ui.convert.ConvertScreen
@@ -38,12 +40,12 @@ import com.audiostudio.app.ui.settings.SettingsScreen
 import com.audiostudio.app.ui.theme.AudioStudioTheme
 import com.audiostudio.app.ui.tools.ToolsScreen
 
-enum class Tab(val label: String, val icon: ImageVector) {
-    HOME("首页", Icons.Filled.Home),
-    CONVERT("转换", Icons.Filled.SwapHoriz),
-    TOOLS("工具", Icons.Filled.ContentCut),
-    HISTORY("历史", Icons.Filled.History),
-    MINE("我的", Icons.Filled.Settings),
+enum class Tab(@StringRes val labelRes: Int, val icon: ImageVector) {
+    HOME(R.string.tab_home, Icons.Filled.Home),
+    CONVERT(R.string.tab_convert, Icons.Filled.SwapHoriz),
+    TOOLS(R.string.tab_tools, Icons.Filled.ContentCut),
+    HISTORY(R.string.tab_history, Icons.Filled.History),
+    MINE(R.string.tab_mine, Icons.Filled.Settings),
 }
 
 class MainActivity : ComponentActivity() {
@@ -87,8 +89,8 @@ private fun AppShell(vm: MainViewModel) {
                     NavigationBarItem(
                         selected = tab == t,
                         onClick = { tab = t },
-                        icon = { Icon(t.icon, contentDescription = t.label) },
-                        label = { Text(t.label) },
+                        icon = { Icon(t.icon, contentDescription = stringResource(t.labelRes)) },
+                        label = { Text(stringResource(t.labelRes)) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                             selectedTextColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,

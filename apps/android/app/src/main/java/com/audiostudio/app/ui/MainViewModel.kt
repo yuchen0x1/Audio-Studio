@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.audiostudio.app.App
+import com.audiostudio.app.R
 import com.audiostudio.app.data.AppSettings
 import com.audiostudio.app.data.TaskRecord
 import com.audiostudio.app.data.TaskStatus
@@ -14,6 +15,8 @@ import com.audiostudio.app.engine.ProbeResult
 import com.audiostudio.app.engine.defaultParamsFor
 import com.audiostudio.app.engine.validateParams
 import com.audiostudio.app.util.SafUtils
+import com.audiostudio.app.updates.LatestReleaseInfo
+import com.audiostudio.app.updates.UpdateChecker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -57,7 +60,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _engineError = MutableStateFlow<String?>(null)
     val engineError: StateFlow<String?> = _engineError
 
-    /** 可编码格式（能力检测后过滤，杜绝"假支持"） */
+    /** Encodable formats (filtered after capability detection to avoid false support). */
     fun encodableFormatIds(): List<String> {
         val caps = _capabilities.value ?: return emptyList()
         return caps.formats.filter { it.canEncode }.map { it.id }
@@ -90,7 +93,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 _capabilities.value = a.ffmpegEngine.ensureInit()
             } catch (t: Throwable) {
-                _engineError.value = "引擎初始化失败：${t.message}"
+                _engineError.value = getApplication<App>().getString(R.string.engine_init_failed, t.message ?: "")
             }
         }
     }
@@ -104,7 +107,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _params.value = transform(_params.value)
     }
 
-    fun paramErrors(): List<String> = validateParams(_params.value)
+    fun paramErrors(): List<String> = validateParams(_params.value).map { it.resolve(getApplication<App>()) }
 
     // ---------- 导入 ----------
 
@@ -147,7 +150,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 } catch (t: Throwable) {
                     replaceEntry(flow, entry.uri) {
-                        it.copy(state = ImportState.FAILED, error = t.message ?: "读取文件失败")
+                        it.copy(state = ImportState.FAILED, error = t.message ?: getApplication<App>().getString(R.string.error_read_file))
                     }
                 }
             }
@@ -252,6 +255,38 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setConcurrency(v: Int) = viewModelScope.launch { a.settingsStore.setConcurrency(v) }
     fun setThemeMode(v: String) = viewModelScope.launch { a.settingsStore.setThemeMode(v) }
     fun setFilenameTemplate(v: String) = viewModelScope.launch { a.settingsStore.setFilenameTemplate(v) }
+    fun setAutoCheckUpdates(v: Boolean) = viewModelScope.launch { a.settingsStore.setAutoCheckUpdates(v) }
+
+    private val _updateChecking = MutableStateFlow(false)
+    val updateChecking: StateFlow<Boolean> = _updateChecking
+    private val _latestRelease = MutableStateFlow<LatestReleaseInfo?>(null)
+    val latestRelease: StateFlow<LatestReleaseInfo?> = _latestRelease
+    private val _updateMessage = MutableStateFlow<String?>(null)
+    val updateMessage: StateFlow<String?> = _updateMessage
+    private val _lastUpdateCheckAt = MutableStateFlow<Long?>(UpdateChecker.lastCheckedAt(app))
+    val lastUpdateCheckAt: StateFlow<Long?> = _lastUpdateCheckAt
+
+    fun checkUpdates() {
+        if (_updateChecking.value) return
+        viewModelScope.launch {
+            _updateChecking.value = true
+            _updateMessage.value = null
+            a.updateChecker.checkManually()
+                .onSuccess { release ->
+                    _lastUpdateCheckAt.value = com.audiostudio.app.updates.UpdateChecker.lastCheckedAt(getApplication())
+                    _latestRelease.value = release.takeIf { it.hasUpdate }
+                    _updateMessage.value = if (release.hasUpdate) {
+                        getApplication<App>().getString(R.string.settings_update_available, release.tagName)
+                    } else {
+                        getApplication<App>().getString(R.string.settings_update_current)
+                    }
+                }
+                .onFailure {
+                    _updateMessage.value = getApplication<App>().getString(R.string.settings_update_failed)
+                }
+            _updateChecking.value = false
+        }
+    }
 
     fun clearFinished() {
         viewModelScope.launch {

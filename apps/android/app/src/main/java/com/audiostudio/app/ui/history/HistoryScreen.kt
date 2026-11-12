@@ -1,5 +1,6 @@
 package com.audiostudio.app.ui.history
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,16 +22,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.audiostudio.app.R
 import com.audiostudio.app.data.TaskStatus
 import com.audiostudio.app.ui.MainViewModel
 import com.audiostudio.app.ui.components.Hint
 import com.audiostudio.app.ui.components.TaskRow
 
-private enum class HistoryFilter(val zh: String) {
-    ALL("全部"), ACTIVE("进行中"), DONE("成功"), FAILED("失败")
+private enum class HistoryFilter(@StringRes val labelRes: Int) {
+    ALL(R.string.history_filter_all), ACTIVE(R.string.history_filter_active), DONE(R.string.history_filter_done), FAILED(R.string.history_filter_failed)
 }
 
 @Composable
@@ -65,9 +68,9 @@ fun HistoryScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("历史记录", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text(stringResource(R.string.history_title), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             TextButton(onClick = { vm.clearFinished() }) {
-                Text("清除已完成", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.history_clear_completed), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -75,7 +78,7 @@ fun HistoryScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
             value = query,
             onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("搜索文件名 / 格式", fontSize = 14.sp) },
+            placeholder = { Text(stringResource(R.string.history_search_placeholder), fontSize = 14.sp) },
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -90,7 +93,7 @@ fun HistoryScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
                 val sel = filter == f
                 TextButton(onClick = { filter = f }) {
                     Text(
-                        f.zh,
+                        stringResource(f.labelRes),
                         color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp,
                     )
@@ -99,7 +102,7 @@ fun HistoryScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
         }
 
         if (filtered.isEmpty()) {
-            Hint(if (tasks.isEmpty()) "还没有任务记录。去「转换」页选择文件开始。" else "没有匹配的记录。")
+            Hint(if (tasks.isEmpty()) stringResource(R.string.history_empty) else stringResource(R.string.history_no_match))
         }
 
         filtered.forEach { t ->

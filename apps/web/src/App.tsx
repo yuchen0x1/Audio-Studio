@@ -6,10 +6,12 @@ import { useNav } from './stores/nav';
 import { useSession } from './stores/session';
 import { useSettings, applyTheme, watchSystemTheme } from './stores/settings';
 import { useHistory } from './stores/history';
-import { useI18n } from './i18n';
+import { useI18n, useT } from './i18n';
 import { Shell } from './components/Shell';
 import { ToastHost } from './components/ToastHost';
 import { PlayerBar } from './components/PlayerBar';
+import { UpdatePrompt } from './components/UpdatePrompt';
+import { startUpdateMonitor } from './updates';
 import { HomePage } from './pages/HomePage';
 import { ConvertPage } from './pages/ConvertPage';
 import { BatchPage } from './pages/BatchPage';
@@ -17,15 +19,24 @@ import { ClipPage } from './pages/ClipPage';
 import { MergePage } from './pages/MergePage';
 
 // CRUD 页面（独立开发，懒加载减小首屏）
-const AnalyzePage = lazy(() => import('./pages/AnalyzePage').then((m) => ({ default: m.AnalyzePage })));
-const MetadataPage = lazy(() => import('./pages/MetadataPage').then((m) => ({ default: m.MetadataPage })));
-const HistoryPage = lazy(() => import('./pages/HistoryPage').then((m) => ({ default: m.HistoryPage })));
-const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const AnalyzePage = lazy(() =>
+  import('./pages/AnalyzePage').then((m) => ({ default: m.AnalyzePage })),
+);
+const MetadataPage = lazy(() =>
+  import('./pages/MetadataPage').then((m) => ({ default: m.MetadataPage })),
+);
+const HistoryPage = lazy(() =>
+  import('./pages/HistoryPage').then((m) => ({ default: m.HistoryPage })),
+);
+const SettingsPage = lazy(() =>
+  import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
 
 function PageFallback() {
+  const t = useT();
   return (
     <div className="page-container">
-      <div className="empty">
+      <div className="empty" role="status" aria-label={t('common.loading')}>
         <span className="spinner" />
         <div className="empty-desc">…</div>
       </div>
@@ -45,7 +56,11 @@ export default function App() {
     const unwatch = watchSystemTheme();
     document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
     void loadHistory();
-    return unwatch;
+    const stopUpdateMonitor = startUpdateMonitor(__APP_VERSION__);
+    return () => {
+      unwatch();
+      stopUpdateMonitor();
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -77,6 +92,7 @@ export default function App() {
       </Shell>
       <PlayerBar />
       <ToastHost />
+      <UpdatePrompt />
     </>
   );
 }

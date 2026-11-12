@@ -11,6 +11,7 @@ apps/android/local.properties
 *.log
 .vite/
 .vitest-tmp/
+coverage/
 release/
 
 # 由 scripts/copy-ffmpeg-core.mjs 在 postinstall 自动生成（约 32MB，不入库）

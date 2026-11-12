@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-12",
+  "results": [
+    {"check": "pnpm typecheck", "status": "PASS", "evidence": "All 3 checked workspace packages completed without TypeScript errors."},
+    {"check": "pnpm lint", "status": "PASS", "evidence": "ESLint completed with no output/errors."},
+    {"check": "pnpm format:check", "status": "PASS", "evidence": "All matched files use Prettier code style."},
+    {"check": "pnpm test", "status": "PARTIAL_PASS", "evidence": "Shared: 74 passed, 20 skipped; Web: 111 passed. Shared FFmpeg integration suite skipped because ffmpeg/ffprobe are absent from PATH."},
+    {"check": "pnpm build:web", "status": "PASS_WITH_WARNINGS", "evidence": "Vite production build succeeded; two known static/dynamic import chunk warnings remain."},
+    {"check": "pnpm audit --prod --registry=https://registry.npmjs.org", "status": "PASS", "evidence": "No known vulnerabilities found."},
+    {"check": "git diff --check", "status": "PASS", "evidence": "No whitespace errors."},
+    {"check": "Release workflow YAML parse", "status": "PASS", "evidence": "Both .github/workflows/ci.yml and release.yml parsed with PyYAML."},
+    {"check": "Tauri updater configuration JSON", "status": "PASS", "evidence": "tauri.conf.json parses and enables requireSignedVersion plus createUpdaterArtifacts."},
+    {"check": "Android update metadata wiring", "status": "BLOCKED", "evidence": "Source reviewed; Java 21 is available but Gradle 9.8.2 could not be downloaded before the local network timeout."},
+    {"check": "cargo check", "status": "PASS", "evidence": "Desktop Rust crate compiled successfully."},
+    {"check": "cargo fmt --check", "status": "PASS", "evidence": "Rust formatting check passed."},
+    {"check": "cargo test --locked", "status": "PASS", "evidence": "45 passed, 0 failed."},
+    {"check": "cargo clippy --all-targets --locked -- -D warnings", "status": "PASS", "evidence": "Clippy completed without warnings."},
+    {"check": "Android testDebugUnitTest/lint/assembleDebug", "status": "BLOCKED", "evidence": "Java 21 is available, but the Gradle wrapper could not download Gradle 9.8.2 before the local network timeout."},
+    {"check": "Playwright browser smoke", "status": "BLOCKED", "evidence": "The required Python playwright package is not installed; the helper server itself started successfully and was stopped cleanly."}
+  ],
+  "not_run": [
+    "real Windows installer/update installation",
+    "Android instrumentation on a device/emulator",
+    "browser visual screenshot and file-picker flow",
+    "full CLI FFmpeg conversion/trim/merge/metadata matrix"
+  ],
+  "regression_statement": "Web/shared and desktop checks passed after the update hardening. Android compilation and real signed Release installation remain externally unverified. Existing dirty changes were preserved."
+}

@@ -38,7 +38,9 @@ describe('parseFilters', () => {
   });
 
   it('同名过滤器只保留一次', () => {
-    const out = [' ... volume             A->A  one', ' ... volume             A->A  two'].join('\n');
+    const out = [' ... volume             A->A  one', ' ... volume             A->A  two'].join(
+      '\n',
+    );
     expect(parseFilters(out)).toEqual(['volume']);
   });
 });
@@ -59,7 +61,9 @@ describe('parseEncoders', () => {
 
 describe('parseMuxers', () => {
   it('解析封装器与解封装器', () => {
-    const out = [' E mp3            MP3 (MPEG audio layer III)', ' D wav            WAV'].join('\n');
+    const out = [' E mp3            MP3 (MPEG audio layer III)', ' D wav            WAV'].join(
+      '\n',
+    );
     expect(parseMuxers(out)).toEqual(['mp3', 'wav']);
   });
 });

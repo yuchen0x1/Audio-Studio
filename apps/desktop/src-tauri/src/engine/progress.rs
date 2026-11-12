@@ -29,7 +29,9 @@ pub fn parse_line(line: &str) -> Option<(String, String)> {
     }
     let key = &line[..eq];
     // key 只允许小写字母/数字/下划线（与 TS parseProgressLine 对齐）
-    if !key.chars().all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit())
+    if !key
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit())
         || !key.starts_with(|c: char| c.is_ascii_lowercase())
     {
         return None;
@@ -49,7 +51,9 @@ pub struct ProgressUpdate {
 
 /// 解析一行 `-progress` 输出，合并进当前状态
 pub fn merge_line(state: &mut ProgressUpdate, line: &str) {
-    let Some((key, value)) = parse_line(line) else { return };
+    let Some((key, value)) = parse_line(line) else {
+        return;
+    };
     match key.as_str() {
         "out_time_us" => {
             if let Ok(v) = parse_i64(&value) {
@@ -66,16 +70,12 @@ pub fn merge_line(state: &mut ProgressUpdate, line: &str) {
         }
         "speed" => {
             let v = value.trim().trim_end_matches('x');
-            if let Ok(f) = v.parse::<f64>() {
-                if f.is_finite() {
-                    state.speed = Some(f);
-                }
+            if let Some(f) = v.parse::<f64>().ok().filter(|f| f.is_finite()) {
+                state.speed = Some(f);
             }
         }
-        "progress" => {
-            if value.trim() == "end" {
-                state.finished = true;
-            }
+        "progress" if value.trim() == "end" => {
+            state.finished = true;
         }
         _ => {}
     }
@@ -83,9 +83,7 @@ pub fn merge_line(state: &mut ProgressUpdate, line: &str) {
 
 /// FFmpeg 的 `out_time_us` 可能是 `N/A` 或负值（-9223372036854775808 表示未知）
 fn parse_i64(raw: &str) -> Result<i64, std::num::ParseIntError> {
-    raw.trim().parse::<i64>().map(|v| {
-        if v < 0 { 0 } else { v }
-    })
+    raw.trim().parse::<i64>().map(|v| if v < 0 { 0 } else { v })
 }
 
 /// 是否是有意义的进度事件（有时间变化才 emit，减少 IPC 噪音）
@@ -145,7 +143,10 @@ mod tests {
         assert!(parse_line("   ").is_none());
         assert!(parse_line("no-equals-sign").is_none());
         assert!(parse_line("=value").is_none());
-        assert_eq!(parse_line(" out_time_us=42 ").unwrap(), ("out_time_us".into(), "42".into()));
+        assert_eq!(
+            parse_line(" out_time_us=42 ").unwrap(),
+            ("out_time_us".into(), "42".into())
+        );
         // 非 progress 风格的行（如 stderr 混入）不误判
         assert!(parse_line("Input #0, wav, from 'a.wav':").is_none());
     }

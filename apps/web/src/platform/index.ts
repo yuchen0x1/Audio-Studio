@@ -8,9 +8,16 @@ export type Target = 'web' | 'desktop';
 
 export const APP_TARGET: Target = __APP_TARGET__ === 'desktop' ? 'desktop' : 'web';
 
+export type UpdateProgressHandler = (progress: number | null) => void;
+
+export interface DesktopUpdateInfo {
+  version: string;
+  body: string;
+  date: string | null;
+}
+
 export const isDesktop: boolean =
-  typeof window !== 'undefined' &&
-  ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
+  typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
 
 let idSeq = 0;
 export function makeSourceId(): string {
@@ -41,7 +48,8 @@ export function dirOf(path: string): string {
   return path.replace(/[\\/][^\\/]+$/, '');
 }
 
-const AUDIO_ACCEPT = '.mp3,.wav,.flac,.aac,.m4a,.ogg,.oga,.opus,.wma,.aiff,.aif,.ape,.ac3,.amr,audio/*';
+const AUDIO_ACCEPT =
+  '.mp3,.wav,.flac,.aac,.m4a,.ogg,.oga,.opus,.wma,.aiff,.aif,.ape,.ac3,.amr,audio/*';
 
 /** 打开文件选择器（Web: <input>；Desktop: Tauri dialog） */
 export async function pickAudioFiles(multiple = true): Promise<AudioSource[]> {
@@ -51,10 +59,27 @@ export async function pickAudioFiles(multiple = true): Promise<AudioSource[]> {
       multiple,
       directory: false,
       title: '选择音频文件',
-      filters: [{
-        name: '音频文件',
-        extensions: ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'oga', 'opus', 'wma', 'aiff', 'aif', 'ape', 'ac3', 'amr'],
-      }],
+      filters: [
+        {
+          name: '音频文件',
+          extensions: [
+            'mp3',
+            'wav',
+            'flac',
+            'aac',
+            'm4a',
+            'ogg',
+            'oga',
+            'opus',
+            'wma',
+            'aiff',
+            'aif',
+            'ape',
+            'ac3',
+            'amr',
+          ],
+        },
+      ],
     });
     if (!picked) return [];
     const paths = Array.isArray(picked) ? picked : [picked];
@@ -112,7 +137,9 @@ export async function deliverResult(opts: {
 }
 
 /** 批量下载（逐个触发，浏览器可能限制多文件，逐个间隔触发） */
-export async function deliverAll(results: Array<{ fileName: string; data?: Uint8Array; outputPath?: string }>): Promise<number> {
+export async function deliverAll(
+  results: Array<{ fileName: string; data?: Uint8Array; outputPath?: string }>,
+): Promise<number> {
   let ok = 0;
   for (const r of results) {
     try {
@@ -169,8 +196,166 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return p === 'granted';
 }
 
+/**
+ * 检查并安装桌面端签名更新。Tauri updater 只在桌面壳中加载，Web 端返回 null。
+ * 安装完成后由调用方负责 relaunch，避免更新组件擅自结束当前会话。
+ */
+export async function installDesktopUpdate(
+  onProgress?: UpdateProgressHandler,
+): Promise<DesktopUpdateInfo | null> {
+  if (!isDesktop) return null;
+  const { check } = await import('@tauri-apps/plugin-updater');
+  const update = await check();
+  if (!update) return null;
+
+  let contentLength = 0;
+  let downloaded = 0;
+  await update.downloadAndInstall((event) => {
+    if (event.event === 'Started') {
+      contentLength = event.data.contentLength ?? 0;
+      downloaded = 0;
+      onProgress?.(contentLength > 0 ? 0 : null);
+    } else if (event.event === 'Progress') {
+      downloaded += event.data.chunkLength;
+      onProgress?.(contentLength > 0 ? Math.min(1, downloaded / contentLength) : null);
+    } else if (event.event === 'Finished') {
+      onProgress?.(1);
+    }
+  });
+
+  return {
+    version: update.version,
+    body: update.body ?? '',
+    date: update.date ?? null,
+  };
+}
+
+/** 让桌面壳在更新安装完成后退出当前进程并打开新版本。 */
+export async function relaunchDesktop(): Promise<void> {
+  if (!isDesktop) return;
+  const { relaunch } = await import('@tauri-apps/plugin-process');
+  await relaunch();
+}
+
+/**
+ * 等待一次更新安装完成并返回 waiting worker。
+ * install 阶段不能主动 skipWaiting，否则页面可能在用户确认前被替换。
+ */
+async function findWaitingWorker(
+  registration: ServiceWorkerRegistration,
+): Promise<ServiceWorker | null> {
+  const existingWaiting = registration.waiting;
+  const installingBeforeUpdate = registration.installing;
+  await registration.update();
+  if (registration.waiting) return registration.waiting;
+  if (existingWaiting && existingWaiting.state !== 'redundant') return existingWaiting;
+
+  const installing = registration.installing ?? installingBeforeUpdate;
+  if (!installing) return null;
+  if (installing.state === 'installed') {
+    return registration.waiting === installing ? installing : registration.waiting;
+  }
+  if (installing.state === 'redundant') return null;
+
+  return new Promise<ServiceWorker | null>((resolve) => {
+    let settled = false;
+    const timeout = window.setTimeout(() => finish(registration.waiting), 10_000);
+    const finish = (worker: ServiceWorker | null) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      installing.removeEventListener('statechange', onStateChange);
+      resolve(worker);
+    };
+    const onStateChange = () => {
+      if (installing.state === 'installed') {
+        finish(registration.waiting === installing ? installing : registration.waiting);
+      } else if (installing.state === 'redundant') {
+        finish(null);
+      }
+    };
+    installing.addEventListener('statechange', onStateChange);
+    onStateChange();
+  });
+}
+
+async function waitForControllerChange(): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+    const timeout = window.setTimeout(() => finish(false), 10_000);
+    const finish = (changed: boolean) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+      resolve(changed);
+    };
+    const onControllerChange = () => finish(true);
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange, {
+      once: true,
+    });
+  });
+}
+
+async function clearWebCaches(registration: ServiceWorkerRegistration): Promise<void> {
+  const active = registration.active ?? navigator.serviceWorker.controller;
+  if (!active) return;
+  await new Promise<void>((resolve) => {
+    const channel = new MessageChannel();
+    const timeout = window.setTimeout(resolve, 5_000);
+    channel.port1.onmessage = () => {
+      window.clearTimeout(timeout);
+      resolve();
+    };
+    active.postMessage({ type: 'CLEAR_CACHES' }, [channel.port2]);
+  });
+}
+
+/**
+ * 让 Web Service Worker 获取最新资源并刷新页面。
+ * 浏览器不能替换服务器部署文件，因此“立即更新”只负责拉取已发布的新版本。
+ */
+export async function refreshWebUpdate(onProgress?: UpdateProgressHandler): Promise<void> {
+  if (isDesktop) return;
+  if (!('serviceWorker' in navigator)) {
+    window.location.reload();
+    return;
+  }
+
+  let registration = await navigator.serviceWorker.getRegistration();
+  if (!registration) {
+    // 页面刚启动时注册可能仍在进行，短暂等待 ready，避免错过 installing worker。
+    registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<undefined>((resolve) => window.setTimeout(() => resolve(undefined), 2_000)),
+    ]);
+  }
+  if (!registration) {
+    window.location.reload();
+    return;
+  }
+
+  onProgress?.(0);
+  const worker = await findWaitingWorker(registration);
+  if (worker) {
+    // 监听必须先于 SKIP_WAITING 注册，确保不丢失 controllerchange。
+    const controllerChange = waitForControllerChange();
+    if (registration.waiting === worker) worker.postMessage({ type: 'SKIP_WAITING' });
+    const changed = await controllerChange;
+    if (changed) await clearWebCaches(registration);
+  } else {
+    // update() 没有产生 waiting worker 时，仍清理旧缓存，避免刷新继续命中旧资源。
+    await clearWebCaches(registration);
+  }
+  onProgress?.(1);
+  window.location.reload();
+}
+
 /** 估算可用磁盘空间（桌面端真实查询，Web 返回 null 表示不可知） */
-export async function estimateFreeSpace(path: string, neededBytes: number): Promise<{ ok: boolean; freeBytes?: number }> {
+export async function estimateFreeSpace(
+  path: string,
+  neededBytes: number,
+): Promise<{ ok: boolean; freeBytes?: number }> {
   if (isDesktop) {
     try {
       const { invoke } = await import('@tauri-apps/api/core');

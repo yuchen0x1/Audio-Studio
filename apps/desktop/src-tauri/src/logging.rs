@@ -86,9 +86,15 @@ pub fn log(level: &str, target: &str, message: &str) {
     }
 }
 
-pub fn info(target: &str, message: &str) { log("INFO", target, message) }
-pub fn warn(target: &str, message: &str) { log("WARN", target, message) }
-pub fn error(target: &str, message: &str) { log("ERROR", target, message) }
+pub fn info(target: &str, message: &str) {
+    log("INFO", target, message)
+}
+pub fn warn(target: &str, message: &str) {
+    log("WARN", target, message)
+}
+pub fn error(target: &str, message: &str) {
+    log("ERROR", target, message)
+}
 
 fn tail_of(path: &Path, max: u64) -> String {
     let mut f = match fs::File::open(path) {
@@ -109,7 +115,9 @@ fn tail_of(path: &Path, max: u64) -> String {
 
 /// 全部日志（当前 + 滚动历史，按新→旧）
 pub fn read_all() -> String {
-    let Some(path) = current_path() else { return String::new() };
+    let Some(path) = current_path() else {
+        return String::new();
+    };
     let mut parts: Vec<String> = Vec::new();
     for i in (0..=ROTATE_KEEP).rev() {
         let p = if i == 0 {
@@ -120,7 +128,10 @@ pub fn read_all() -> String {
         if p.exists() {
             let text = tail_of(&p, 8 * 1024 * 1024);
             if !text.trim().is_empty() {
-                parts.push(format!("===== {} =====\n{text}", p.file_name().unwrap_or_default().to_string_lossy()));
+                parts.push(format!(
+                    "===== {} =====\n{text}",
+                    p.file_name().unwrap_or_default().to_string_lossy()
+                ));
             }
         }
     }

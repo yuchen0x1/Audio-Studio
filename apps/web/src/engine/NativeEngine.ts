@@ -3,11 +3,25 @@
  * 参数向量仍由共享 TS 层构建，Rust 侧只负责校验、spawn、进度解析与事件。
  */
 import type {
-  AudioEngine, AudioSource, AudioJob, EngineCapabilities, EngineInfo,
-  JobResult, ProbeResult, ResourceEstimate, TaskCallbacks, ConvertJob, TrimJob, MergeJob,
+  AudioEngine,
+  AudioSource,
+  AudioJob,
+  EngineCapabilities,
+  EngineInfo,
+  JobResult,
+  ProbeResult,
+  ResourceEstimate,
+  TaskCallbacks,
+  ConvertJob,
+  TrimJob,
+  MergeJob,
 } from '@audio-studio/shared';
 import {
-  makeEngineError, buildConvertArgs, buildTrimArgs, buildMergeArgs, expandJob,
+  makeEngineError,
+  buildConvertArgs,
+  buildTrimArgs,
+  buildMergeArgs,
+  expandJob,
   classifyEngineOutput,
 } from '@audio-studio/shared';
 
@@ -21,7 +35,12 @@ async function tauri() {
 }
 
 export class NativeEngine implements AudioEngine {
-  readonly info: EngineInfo = { kind: 'native', name: 'FFmpeg (native)', version: '', location: '' };
+  readonly info: EngineInfo = {
+    kind: 'native',
+    name: 'FFmpeg (native)',
+    version: '',
+    location: '',
+  };
   private caps: EngineCapabilities | null = null;
   private probeCache = new Map<string, ProbeResult>();
   private unlisteners: Array<() => void> = [];
@@ -74,7 +93,6 @@ export class NativeEngine implements AudioEngine {
 
   async run(job: AudioJob, callbacks?: TaskCallbacks): Promise<JobResult> {
     if (!this.caps) await this.init();
-    const { invoke, listen } = await tauri();
 
     // 多片段作业顺序执行（与 Web 引擎一致的语义）
     const jobs = expandJob(job);
@@ -83,10 +101,11 @@ export class NativeEngine implements AudioEngine {
       const all: JobResult[] = [];
       for (let i = 0; i < jobs.length; i++) {
         const wrapped: TaskCallbacks = {
-          onProgress: (p) => callbacks?.onProgress?.({
-            ...p,
-            ratio: (i + p.ratio) / jobs.length,
-          }),
+          onProgress: (p) =>
+            callbacks?.onProgress?.({
+              ...p,
+              ratio: (i + p.ratio) / jobs.length,
+            }),
           onLog: callbacks?.onLog,
         };
         last = await this.runSingle(jobs[i], wrapped);
@@ -105,7 +124,9 @@ export class NativeEngine implements AudioEngine {
       throw makeEngineError('E_CANCELLED');
     }
     const args = buildArgsForJob(job);
-    const outputPath = job.outputDir ? `${job.outputDir}/${job.outputFileName}` : job.outputFileName;
+    const outputPath = job.outputDir
+      ? `${job.outputDir}/${job.outputFileName}`
+      : job.outputFileName;
     const totalMs = await this.totalDurationOf(job);
     const t0 = performance.now();
 
@@ -129,23 +150,30 @@ export class NativeEngine implements AudioEngine {
         void listen<{ taskId: string; code: string; message: string }>('task://error', (e) => {
           if (e.payload.taskId !== job.taskId) return;
           finish(() => {
-            const code = /^E_[A-Z_]+$/.test(e.payload.code) ? (e.payload.code as never) : classifyEngineOutput(e.payload.message);
+            const code = /^E_[A-Z_]+$/.test(e.payload.code)
+              ? (e.payload.code as never)
+              : classifyEngineOutput(e.payload.message);
             reject(makeEngineError(code, e.payload.message));
           });
         }).then((un) => unsubs.push(un));
 
-        void listen<{ taskId: string; outputPath?: string; sizeBytes: number; elapsedMs: number }>('task://done', (e) => {
-          if (e.payload.taskId !== job.taskId) return;
-          // 冲突重命名时 Rust 侧返回真实落盘路径（如 "mix (1).mp3"），以它为准
-          const realPath = e.payload.outputPath || outputPath;
-          const realName = realPath.split(/[\\/]/).pop() || job.outputFileName;
-          finish(() => resolve({
-            outputPath: realPath,
-            fileName: realName,
-            sizeBytes: e.payload.sizeBytes,
-            elapsedMs: e.payload.elapsedMs || Math.round(performance.now() - t0),
-          }));
-        }).then((un) => unsubs.push(un));
+        void listen<{ taskId: string; outputPath?: string; sizeBytes: number; elapsedMs: number }>(
+          'task://done',
+          (e) => {
+            if (e.payload.taskId !== job.taskId) return;
+            // 冲突重命名时 Rust 侧返回真实落盘路径（如 "mix (1).mp3"），以它为准
+            const realPath = e.payload.outputPath || outputPath;
+            const realName = realPath.split(/[\\/]/).pop() || job.outputFileName;
+            finish(() =>
+              resolve({
+                outputPath: realPath,
+                fileName: realName,
+                sizeBytes: e.payload.sizeBytes,
+                elapsedMs: e.payload.elapsedMs || Math.round(performance.now() - t0),
+              }),
+            );
+          },
+        ).then((un) => unsubs.push(un));
 
         invoke('start_task', { taskId: job.taskId, args, outputPath })
           .then(() => {
@@ -155,10 +183,12 @@ export class NativeEngine implements AudioEngine {
               void invoke('cancel_task', { taskId: job.taskId }).catch(() => undefined);
             }
           })
-          .catch((err) => finish(() => {
-            const msg = err instanceof Error ? err.message : String(err);
-            reject(makeEngineError(classifyEngineOutput(msg), msg));
-          }));
+          .catch((err) =>
+            finish(() => {
+              const msg = err instanceof Error ? err.message : String(err);
+              reject(makeEngineError(classifyEngineOutput(msg), msg));
+            }),
+          );
       });
 
       // 真实校验输出
@@ -170,12 +200,18 @@ export class NativeEngine implements AudioEngine {
             sizeBytes: result.sizeBytes,
             path: outputPath,
           });
-        } catch { /* 校验失败不阻断交付 */ }
+        } catch {
+          /* 校验失败不阻断交付 */
+        }
       }
       return result;
     } finally {
       for (const u of unsubs) {
-        try { u(); } catch { /* ignore */ }
+        try {
+          u();
+        } catch {
+          /* ignore */
+        }
       }
     }
   }
@@ -219,7 +255,11 @@ export class NativeEngine implements AudioEngine {
 
   async dispose(): Promise<void> {
     for (const u of this.unlisteners) {
-      try { u(); } catch { /* ignore */ }
+      try {
+        u();
+      } catch {
+        /* ignore */
+      }
     }
     this.unlisteners = [];
     this.probeCache.clear();
@@ -246,5 +286,7 @@ function buildArgsForJob(job: AudioJob): string[] {
 
 /** 测试辅助：当前是否已就绪 */
 export function nativeReady(engine: NativeEngine): boolean {
-  return engine.capabilities !== undefined && (engine as unknown as { ready: boolean }).ready === true;
+  return (
+    engine.capabilities !== undefined && (engine as unknown as { ready: boolean }).ready === true
+  );
 }

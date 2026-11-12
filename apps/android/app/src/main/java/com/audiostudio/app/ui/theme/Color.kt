@@ -14,7 +14,7 @@ val ErrorRed = Color(0xFFFF5C5C)
 val TextPrimaryDark = Color(0xFFE8ECF4)
 val TextSecondaryDark = Color(0xFF8A93A6)
 
-// 浅色变体（"跟随系统"在系统浅色时使用）
+// Light variants (used when "follow system" resolves to a light system theme)
 val BgLight = Color(0xFFF5F7FB)
 val CardLight = Color(0xFFFFFFFF)
 val StrokeLight = Color(0xFFDDE3EE)

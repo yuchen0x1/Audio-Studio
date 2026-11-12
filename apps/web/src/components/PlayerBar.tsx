@@ -4,17 +4,28 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePlayer } from '../stores/player';
-import { useI18n } from '../i18n';
+import { useI18n, useT } from '../i18n';
 import { fmtDuration } from '../utils/format';
 import { computePeaks, drawWaveform } from '../audio/waveform';
 import {
-  IconPlay, IconPause, IconPrev, IconNext, IconVolume, IconMute,
-  IconLoop, IconLoopOne, IconShuffle, IconList, IconClose, IconMusic,
+  IconPlay,
+  IconPause,
+  IconPrev,
+  IconNext,
+  IconVolume,
+  IconMute,
+  IconLoop,
+  IconLoopOne,
+  IconShuffle,
+  IconList,
+  IconClose,
+  IconMusic,
 } from './Icons';
 
 export function PlayerBar() {
-  const t = useI18n((s) => s.lang);
-  const zh = t !== 'en';
+  const lang = useI18n((s) => s.lang);
+  const zh = lang !== 'en';
+  const t = useT();
 
   const items = usePlayer((s) => s.items);
   const index = usePlayer((s) => s.index);
@@ -76,7 +87,10 @@ export function PlayerBar() {
     // 波形（Web：objectURL 可直接 fetch；桌面端源为路径无法 fetch，留空态中线）
     if (current?.url) {
       usePlayer.setState({ peaksLoading: true });
-      const buckets = Math.max(200, Math.min(1200, Math.round((canvasRef.current?.clientWidth ?? 600) * 1.5)));
+      const buckets = Math.max(
+        200,
+        Math.min(1200, Math.round((canvasRef.current?.clientWidth ?? 600) * 1.5)),
+      );
       void fetch(current.url)
         .then((r) => r.blob())
         .then((blob) => computePeaks(blob, buckets))
@@ -97,7 +111,10 @@ export function PlayerBar() {
     const st = usePlayer.getState();
     if (st.loop === 'one') {
       const audio = audioRef.current;
-      if (audio) { audio.currentTime = 0; void audio.play(); }
+      if (audio) {
+        audio.currentTime = 0;
+        void audio.play();
+      }
       return;
     }
     st.next();
@@ -115,13 +132,19 @@ export function PlayerBar() {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         const dpr = window.devicePixelRatio || 1;
-        const w = canvas.clientWidth; const h = canvas.clientHeight;
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
         if (!w || !h) return;
-        canvas.width = w * dpr; canvas.height = h * dpr;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, w, h);
-        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--wave').trim() || '#38415c';
-        ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+        ctx.strokeStyle =
+          getComputedStyle(document.documentElement).getPropertyValue('--wave').trim() || '#38415c';
+        ctx.beginPath();
+        ctx.moveTo(0, h / 2);
+        ctx.lineTo(w, h / 2);
+        ctx.stroke();
       }
     }
   }, [peaks, currentTime, duration, peaksLoading]);
@@ -155,23 +178,38 @@ export function PlayerBar() {
             {current?.name ?? '—'}
           </div>
           <div className="player-sub truncate">
-            {peaksLoading ? (zh ? '波形生成中…' : 'Generating waveform…') : (current?.probe?.format ?? '')}
+            {peaksLoading
+              ? zh
+                ? '波形生成中…'
+                : 'Generating waveform…'
+              : (current?.probe?.format ?? '')}
           </div>
         </div>
 
         {/* 控制 */}
         <div className="player-controls">
-          <button className="btn btn-ghost btn-icon btn-sm" title={zh ? '上一首' : 'Previous'} onClick={() => usePlayer.getState().prev()}>
+          <button
+            className="btn btn-ghost btn-icon btn-sm"
+            title={zh ? '上一首' : 'Previous'}
+            aria-label={t('player.prev')}
+            onClick={() => usePlayer.getState().prev()}
+          >
             <IconPrev size={15} />
           </button>
           <button
             className="play-btn"
-            title={playing ? (zh ? '暂停' : 'Pause') : (zh ? '播放' : 'Play')}
+            title={playing ? (zh ? '暂停' : 'Pause') : zh ? '播放' : 'Play'}
+            aria-label={playing ? t('player.pause') : t('player.play')}
             onClick={() => usePlayer.getState().toggle()}
           >
             {playing ? <IconPause size={16} /> : <IconPlay size={16} />}
           </button>
-          <button className="btn btn-ghost btn-icon btn-sm" title={zh ? '下一首' : 'Next'} onClick={() => usePlayer.getState().next()}>
+          <button
+            className="btn btn-ghost btn-icon btn-sm"
+            title={zh ? '下一首' : 'Next'}
+            aria-label={t('player.next')}
+            onClick={() => usePlayer.getState().next()}
+          >
             <IconNext size={15} />
           </button>
         </div>
@@ -190,7 +228,27 @@ export function PlayerBar() {
           <button
             className={`btn btn-ghost btn-icon btn-sm${loop !== 'off' ? ' active' : ''}`}
             style={loop !== 'off' ? { color: 'var(--accent)' } : undefined}
-            title={loop === 'one' ? (zh ? '单曲循环' : 'Loop one') : loop === 'all' ? (zh ? '列表循环' : 'Loop all') : (zh ? '循环关闭' : 'Loop off')}
+            title={
+              loop === 'one'
+                ? zh
+                  ? '单曲循环'
+                  : 'Loop one'
+                : loop === 'all'
+                  ? zh
+                    ? '列表循环'
+                    : 'Loop all'
+                  : zh
+                    ? '循环关闭'
+                    : 'Loop off'
+            }
+            aria-label={
+              loop === 'one'
+                ? t('player.loopOne')
+                : loop === 'all'
+                  ? t('player.loopAll')
+                  : t('player.loopOff')
+            }
+            aria-pressed={loop !== 'off'}
             onClick={() => {
               const st = usePlayer.getState();
               st.setLoop(st.loop === 'off' ? 'all' : st.loop === 'all' ? 'one' : 'off');
@@ -202,13 +260,17 @@ export function PlayerBar() {
             className="btn btn-ghost btn-icon btn-sm"
             style={shuffle ? { color: 'var(--accent)' } : undefined}
             title={zh ? '随机播放' : 'Shuffle'}
+            aria-label={t('player.shuffle')}
+            aria-pressed={shuffle}
             onClick={() => usePlayer.getState().toggleShuffle()}
           >
             <IconShuffle size={15} />
           </button>
           <button
             className="btn btn-ghost btn-icon btn-sm"
-            title={muted ? (zh ? '取消静音' : 'Unmute') : (zh ? '静音' : 'Mute')}
+            title={muted ? (zh ? '取消静音' : 'Unmute') : zh ? '静音' : 'Mute'}
+            aria-label={muted ? t('player.unmute') : t('player.mute')}
+            aria-pressed={muted}
             onClick={() => usePlayer.getState().toggleMute()}
           >
             {muted || volume === 0 ? <IconMute size={15} /> : <IconVolume size={15} />}
@@ -220,12 +282,14 @@ export function PlayerBar() {
             max={1}
             step={0.01}
             value={muted ? 0 : volume}
-            aria-label="volume"
+            aria-label={t('player.volume')}
             onChange={(e) => usePlayer.getState().setVolume(Number(e.target.value))}
           />
           <button
             className="btn btn-ghost btn-icon btn-sm"
             title={zh ? '播放列表' : 'Playlist'}
+            aria-label={t('player.playlist')}
+            aria-expanded={showPlaylist}
             onClick={() => setShowPlaylist((v) => !v)}
           >
             <IconList size={15} />
@@ -236,8 +300,14 @@ export function PlayerBar() {
         {showPlaylist && (
           <div className="playlist-panel">
             <div className="row-between" style={{ padding: '4px 8px 8px' }}>
-              <span className="xs bold muted">{zh ? '播放列表' : 'Playlist'} ({items.length})</span>
-              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowPlaylist(false)}>
+              <span className="xs bold muted">
+                {zh ? '播放列表' : 'Playlist'} ({items.length})
+              </span>
+              <button
+                className="btn btn-ghost btn-icon btn-sm"
+                onClick={() => setShowPlaylist(false)}
+                aria-label={t('common.close')}
+              >
                 <IconClose size={13} />
               </button>
             </div>
@@ -256,7 +326,11 @@ export function PlayerBar() {
                 <span className="grow truncate">{it.name}</span>
                 <button
                   className="btn btn-ghost btn-icon btn-sm"
-                  onClick={(e) => { e.stopPropagation(); usePlayer.getState().removeAt(i); }}
+                  aria-label={t('common.remove')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    usePlayer.getState().removeAt(i);
+                  }}
                 >
                   <IconClose size={12} />
                 </button>

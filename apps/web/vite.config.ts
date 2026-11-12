@@ -15,7 +15,12 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       __APP_TARGET__: JSON.stringify(isDesktop ? 'desktop' : 'web'),
-      __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.1.0'),
+      __APP_VERSION__: JSON.stringify(
+        process.env.AUDIO_STUDIO_VERSION ??
+          process.env.RELEASE_VERSION ??
+          process.env.npm_package_version ??
+          '0.1.0',
+      ),
     },
     worker: {
       format: 'es',

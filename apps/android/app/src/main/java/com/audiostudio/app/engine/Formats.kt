@@ -1,11 +1,14 @@
 package com.audiostudio.app.engine
 
+import androidx.annotation.StringRes
+import com.audiostudio.app.R
+
 /**
  * 音频格式注册表 —— 与 packages/shared/src/formats.ts 语义保持一致的 Kotlin 移植。
  * 界面只能展示运行时能力检测（ffmpeg -encoders）通过的格式。
  */
 
-data class CompressionLevel(val id: String, val label: String, val value: Int)
+data class CompressionLevel(val id: String, @StringRes val labelRes: Int, val value: Int)
 
 enum class FormatKind { LOSSY, LOSSLESS, COMPRESSIVE_LOSSLESS }
 
@@ -33,7 +36,7 @@ data class FormatDef(
     val bitrateOptionsKbps: List<Int>? = null,
     val compressionLevels: List<CompressionLevel>? = null,
     val defaultCompressionLevelId: String? = null,
-    val note: String? = null,
+    @StringRes val noteRes: Int? = null,
 )
 
 private val STD_RATES_LOW = listOf(8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000)
@@ -56,7 +59,7 @@ object Formats {
             channels = CH_STEREO,
             defaultBitrateKbps = 192,
             bitrateOptionsKbps = listOf(96, 112, 128, 160, 192, 224, 256, 320),
-            note = "通用格式，兼容性最佳",
+            noteRes = R.string.format_note_mp3,
         ),
         FormatDef(
             id = "wav", label = "WAV",
@@ -67,7 +70,7 @@ object Formats {
             supportsBitrate = false, supportsBitDepth = true, supportsVbrQuality = false,
             bitDepths = listOf(16, 24, 32, "f32"),
             sampleRates = STD_RATES_WIDE, channels = CH_STEREO,
-            note = "未压缩，体积大但兼容性最好",
+            noteRes = R.string.format_note_wav,
         ),
         FormatDef(
             id = "flac", label = "FLAC",
@@ -78,12 +81,12 @@ object Formats {
             bitDepths = listOf(16, 24),
             sampleRates = STD_RATES_WIDE, channels = CH_STEREO,
             compressionLevels = listOf(
-                CompressionLevel("fast", "快 (0)", 0),
-                CompressionLevel("default", "默认 (5)", 5),
-                CompressionLevel("high", "高压缩 (8)", 8),
+                CompressionLevel("fast", R.string.compression_fast, 0),
+                CompressionLevel("default", R.string.compression_default, 5),
+                CompressionLevel("high", R.string.compression_high, 8),
             ),
             defaultCompressionLevelId = "default",
-            note = "无损压缩，音质等同 WAV，体积约 60%",
+            noteRes = R.string.format_note_flac,
         ),
         FormatDef(
             id = "aac", label = "AAC (.aac)",
@@ -95,7 +98,7 @@ object Formats {
             sampleRates = STD_RATES_LOW, channels = CH_STEREO,
             defaultBitrateKbps = 192,
             bitrateOptionsKbps = listOf(64, 96, 128, 160, 192, 256, 320),
-            note = "ADTS 裸流，需要标签请选择 M4A",
+            noteRes = R.string.format_note_aac,
         ),
         FormatDef(
             id = "m4a", label = "M4A",
@@ -107,7 +110,7 @@ object Formats {
             sampleRates = STD_RATES_LOW, channels = CH_STEREO,
             defaultBitrateKbps = 192,
             bitrateOptionsKbps = listOf(64, 96, 128, 160, 192, 256, 320),
-            note = "Apple 生态标准格式，支持标签与封面",
+            noteRes = R.string.format_note_m4a,
         ),
         FormatDef(
             id = "ogg", label = "OGG Vorbis",
@@ -130,7 +133,7 @@ object Formats {
             sampleRates = listOf(48000), channels = listOf(1, 2),
             defaultBitrateKbps = 128,
             bitrateOptionsKbps = listOf(32, 64, 96, 128, 160, 192, 256, 320, 510),
-            note = "低码率下音质最佳；内部固定 48kHz 采样率",
+            noteRes = R.string.format_note_opus,
         ),
         FormatDef(
             id = "wma", label = "WMA",
@@ -142,7 +145,7 @@ object Formats {
             channels = CH_STEREO,
             defaultBitrateKbps = 128,
             bitrateOptionsKbps = listOf(48, 64, 128, 192, 320),
-            note = "Windows Media 格式，兼容性依播放器而定",
+            noteRes = R.string.format_note_wma,
         ),
         FormatDef(
             id = "aiff", label = "AIFF",
@@ -153,7 +156,7 @@ object Formats {
             supportsBitrate = false, supportsBitDepth = true, supportsVbrQuality = false,
             bitDepths = listOf(16, 24, 32),
             sampleRates = STD_RATES_WIDE, channels = CH_STEREO,
-            note = "Apple 传统无损格式（大端 PCM）",
+            noteRes = R.string.format_note_aiff,
         ),
         FormatDef(
             id = "ape", label = "APE (Monkey's Audio)",
@@ -164,7 +167,7 @@ object Formats {
             bitDepths = listOf(16, 24),
             sampleRates = listOf(8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000),
             channels = CH_STEREO,
-            note = "压缩无损，解码资源消耗较高",
+            noteRes = R.string.format_note_ape,
         ),
         FormatDef(
             id = "ac3", label = "AC3 (Dolby Digital)",
@@ -176,7 +179,7 @@ object Formats {
             channels = listOf(1, 2, 6),
             defaultBitrateKbps = 448,
             bitrateOptionsKbps = listOf(128, 192, 256, 320, 384, 448, 640),
-            note = "环绕声常用格式，采样率仅支持 32/44.1/48kHz",
+            noteRes = R.string.format_note_ac3,
         ),
         FormatDef(
             id = "amr", label = "AMR-NB",
@@ -185,7 +188,7 @@ object Formats {
             encoderCandidates = listOf("libopencore_amrnb"), muxer = "amr", demuxer = "amr",
             supportsBitrate = false, supportsBitDepth = false, supportsVbrQuality = false,
             sampleRates = listOf(8000), channels = listOf(1),
-            note = "语音优化格式，仅 8kHz 单声道",
+            noteRes = R.string.format_note_amr,
         ),
         FormatDef(
             id = "alac", label = "ALAC (Apple Lossless)",
@@ -196,7 +199,7 @@ object Formats {
             bitDepths = listOf(16, 24),
             sampleRates = listOf(8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000),
             channels = CH_STEREO,
-            note = "Apple 生态无损；与 AAC-M4A 共用 .m4a 扩展名",
+            noteRes = R.string.format_note_alac,
         ),
     )
 

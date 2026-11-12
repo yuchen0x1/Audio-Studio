@@ -1,10 +1,10 @@
 /**
  * 音频合并页：多文件排序 + 片段增益/淡入淡出 + 间隔静音 + 真实合并进度。
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
-import type { EncodeParams, AudioSource, MergeJob, MergeItem } from '@audio-studio/shared';
+import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import type { EncodeParams, MergeJob, MergeItem } from '@audio-studio/shared';
 import { defaultParamsFor, createTaskId, getFormat } from '@audio-studio/shared';
-import { useI18n } from '../i18n';
+import { useI18n, useT } from '../i18n';
 import { pickAudioFiles, deliverResult, isDesktop } from '../platform';
 import { fmtDuration, fmtSize } from '../utils/format';
 import { FormatSelect } from '../components/FormatSelect';
@@ -13,8 +13,14 @@ import { Modal } from '../components/Modal';
 import { runAdhoc, cancelAdhoc, type AdhocTaskState } from '../engine/runAdhoc';
 import { toast } from '../stores/toast';
 import {
-  IconUpload, IconMusic, IconClose, IconArrowUp, IconArrowDown,
-  IconPlay, IconDownload, IconMerge,
+  IconUpload,
+  IconMusic,
+  IconClose,
+  IconArrowUp,
+  IconArrowDown,
+  IconPlay,
+  IconDownload,
+  IconMerge,
 } from '../components/Icons';
 
 interface MergeRow extends MergeItem {
@@ -25,6 +31,8 @@ interface MergeRow extends MergeItem {
 export function MergePage() {
   const lang = useI18n((s) => s.lang);
   const zh = lang !== 'en';
+  const t = useT();
+  const gapId = useId();
 
   const [rows, setRows] = useState<MergeRow[]>([]);
   const [gapMs, setGapMs] = useState(0);
@@ -43,7 +51,9 @@ export function MergePage() {
     const { getEngine, initEngine } = await import('../engine');
     try {
       await initEngine();
-    } catch { /* probe 失败会在单行显示 */ }
+    } catch {
+      /* probe 失败会在单行显示 */
+    }
     const engine = getEngine();
 
     const newRows: MergeRow[] = [];
@@ -83,7 +93,8 @@ export function MergePage() {
   };
 
   const totalMs = useMemo(
-    () => rows.reduce((sum, r) => sum + (r.durationMs ?? 0), 0) + Math.max(0, rows.length - 1) * gapMs,
+    () =>
+      rows.reduce((sum, r) => sum + (r.durationMs ?? 0), 0) + Math.max(0, rows.length - 1) * gapMs,
     [rows, gapMs],
   );
 
@@ -92,7 +103,10 @@ export function MergePage() {
     const row = rows[idx];
     if (!audio || !row) return;
     const url = urlRef.current.get(row.source.id);
-    if (!url) { toast.warning(zh ? '该文件无法试听' : 'Preview unavailable'); return; }
+    if (!url) {
+      toast.warning(zh ? '该文件无法试听' : 'Preview unavailable');
+      return;
+    }
     if (playingIdx === idx) {
       audio.pause();
       setPlayingIdx(null);
@@ -144,7 +158,11 @@ export function MergePage() {
   const download = async () => {
     if (!task?.result) return;
     try {
-      await deliverResult({ fileName: task.result.fileName, data: task.result.data, outputPath: task.result.outputPath });
+      await deliverResult({
+        fileName: task.result.fileName,
+        data: task.result.data,
+        outputPath: task.result.outputPath,
+      });
       if (isDesktop) toast.success(zh ? '已保存' : 'Saved', task.result.outputPath);
     } catch (e) {
       toast.error(zh ? '下载失败' : 'Download failed', String(e));
@@ -166,7 +184,9 @@ export function MergePage() {
           </span>
         </div>
         <div className="row" style={{ gap: 'var(--sp-3)' }}>
-          <span className="badge">{rows.length} {zh ? '段' : 'items'}</span>
+          <span className="badge">
+            {rows.length} {zh ? '段' : 'items'}
+          </span>
           <span className="badge badge-accent mono">{fmtDuration(totalMs)}</span>
         </div>
       </div>
@@ -174,16 +194,28 @@ export function MergePage() {
       {/* 列表 */}
       {rows.length === 0 ? (
         <div className="empty">
-          <div className="empty-icon"><IconMerge size={26} /></div>
-          <div className="empty-title">{zh ? '添加至少两个音频文件' : 'Add at least two audio files'}</div>
-          <div className="empty-desc">{zh ? '支持 MP3 / WAV / FLAC 等 13 种格式混合合并' : 'Mix MP3 / WAV / FLAC and 10 more formats'}</div>
+          <div className="empty-icon">
+            <IconMerge size={26} />
+          </div>
+          <div className="empty-title">
+            {zh ? '添加至少两个音频文件' : 'Add at least two audio files'}
+          </div>
+          <div className="empty-desc">
+            {zh
+              ? '支持 MP3 / WAV / FLAC 等 13 种格式混合合并'
+              : 'Mix MP3 / WAV / FLAC and 10 more formats'}
+          </div>
         </div>
       ) : (
         <div className="col" style={{ gap: 'var(--sp-2)' }}>
           {rows.map((row, i) => (
             <div key={`${row.source.id}-${i}`} className="file-row" style={{ flexWrap: 'wrap' }}>
-              <span className="badge mono" style={{ flex: 'none' }}>{i + 1}</span>
-              <div className="file-icon"><IconMusic size={17} /></div>
+              <span className="badge mono" style={{ flex: 'none' }}>
+                {i + 1}
+              </span>
+              <div className="file-icon">
+                <IconMusic size={17} />
+              </div>
               <div className="grow" style={{ minWidth: 160 }}>
                 <div className="truncate bold small">{row.source.name}</div>
                 <div className="file-meta">
@@ -219,7 +251,9 @@ export function MergePage() {
                     type="number"
                     min={0}
                     value={row.fadeInMs ?? 0}
-                    onChange={(e) => patchRow(i, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })}
+                    onChange={(e) =>
+                      patchRow(i, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })
+                    }
                   />
                 </label>
                 <label className="xs muted" title={zh ? '淡出 (ms)' : 'Fade out (ms)'}>
@@ -230,23 +264,54 @@ export function MergePage() {
                     type="number"
                     min={0}
                     value={row.fadeOutMs ?? 0}
-                    onChange={(e) => patchRow(i, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })}
+                    onChange={(e) =>
+                      patchRow(i, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })
+                    }
                   />
                 </label>
               </div>
 
               {/* 操作 */}
               <div className="row" style={{ gap: 2, flex: 'none' }}>
-                <button className="btn btn-ghost btn-icon btn-sm" title={zh ? '试听' : 'Preview'} onClick={() => playRow(i)} disabled={!!row.probeError}>
-                  {playingIdx === i ? <IconPlay size={13} style={{ color: 'var(--accent)' }} /> : <IconPlay size={13} />}
+                <button
+                  className="btn btn-ghost btn-icon btn-sm"
+                  title={zh ? '试听' : 'Preview'}
+                  aria-label={t('common.preview')}
+                  aria-pressed={playingIdx === i}
+                  onClick={() => playRow(i)}
+                  disabled={!!row.probeError}
+                >
+                  {playingIdx === i ? (
+                    <IconPlay size={13} style={{ color: 'var(--accent)' }} />
+                  ) : (
+                    <IconPlay size={13} />
+                  )}
                 </button>
-                <button className="btn btn-ghost btn-icon btn-sm" title={zh ? '上移' : 'Move up'} onClick={() => move(i, -1)} disabled={i === 0}>
+                <button
+                  className="btn btn-ghost btn-icon btn-sm"
+                  title={zh ? '上移' : 'Move up'}
+                  aria-label={t('merge.moveUp')}
+                  onClick={() => move(i, -1)}
+                  disabled={i === 0}
+                >
                   <IconArrowUp size={13} />
                 </button>
-                <button className="btn btn-ghost btn-icon btn-sm" title={zh ? '下移' : 'Move down'} onClick={() => move(i, 1)} disabled={i === rows.length - 1}>
+                <button
+                  className="btn btn-ghost btn-icon btn-sm"
+                  title={zh ? '下移' : 'Move down'}
+                  aria-label={t('merge.moveDown')}
+                  onClick={() => move(i, 1)}
+                  disabled={i === rows.length - 1}
+                >
                   <IconArrowDown size={13} />
                 </button>
-                <button className="btn btn-ghost btn-icon btn-sm" title={zh ? '移除' : 'Remove'} onClick={() => removeAt(i)} disabled={running}>
+                <button
+                  className="btn btn-ghost btn-icon btn-sm"
+                  title={zh ? '移除' : 'Remove'}
+                  aria-label={t('merge.removeItem')}
+                  onClick={() => removeAt(i)}
+                  disabled={running}
+                >
                   <IconClose size={14} />
                 </button>
               </div>
@@ -262,20 +327,23 @@ export function MergePage() {
             <div className="card-title">{zh ? '合并设置' : 'Merge settings'}</div>
             <div className="grid-2">
               <div className="field">
-                <span className="field-label">
+                <label className="field-label" htmlFor={gapId}>
                   {zh ? '片段间隔 (ms)' : 'Gap between clips (ms)'}
                   <span className="xs muted mono">{gapMs}</span>
-                </span>
+                </label>
                 <input
                   className="range"
                   type="range"
+                  id={gapId}
                   min={0}
                   max={5000}
                   step={100}
                   value={gapMs}
                   onChange={(e) => setGapMs(Number(e.target.value))}
                 />
-                <span className="field-hint">{zh ? '每个片段之间插入静音' : 'Silence inserted between clips'}</span>
+                <span className="field-hint">
+                  {zh ? '每个片段之间插入静音' : 'Silence inserted between clips'}
+                </span>
               </div>
               <div className="field">
                 <span className="field-label">{zh ? '输出格式' : 'Output format'}</span>
@@ -290,7 +358,11 @@ export function MergePage() {
               </div>
             </div>
             <hr className="divider" />
-            <ParamPanel params={params} onChange={(patch) => setParams((p) => ({ ...p, ...patch }))} showNaming={false} />
+            <ParamPanel
+              params={params}
+              onChange={(patch) => setParams((p) => ({ ...p, ...patch }))}
+              showNaming={false}
+            />
           </div>
 
           {/* 执行面板 */}
@@ -298,30 +370,57 @@ export function MergePage() {
             <div className="card-title">{zh ? '执行' : 'Execute'}</div>
             <div className="col" style={{ gap: 'var(--sp-3)' }}>
               <div className="kv xs">
-                <dt>{zh ? '片段' : 'Clips'}</dt><dd>{rows.length}</dd>
-                <dt>{zh ? '预计总长' : 'Est. duration'}</dt><dd className="mono">{fmtDuration(totalMs)}</dd>
+                <dt>{zh ? '片段' : 'Clips'}</dt>
+                <dd>{rows.length}</dd>
+                <dt>{zh ? '预计总长' : 'Est. duration'}</dt>
+                <dd className="mono">{fmtDuration(totalMs)}</dd>
               </div>
 
               {task && (
                 <div className="col" style={{ gap: 'var(--sp-2)' }}>
                   <div className="row-between xs">
                     <span className="muted">
-                      {task.status === 'running' ? (zh ? '合并中…' : 'Merging…')
-                        : task.status === 'completed' ? (zh ? '完成' : 'Done')
-                        : task.status === 'failed' ? (zh ? '失败' : 'Failed')
-                        : task.status === 'cancelled' ? (zh ? '已取消' : 'Cancelled')
-                        : (zh ? '准备中…' : 'Preparing…')}
-                  </span>
+                      {task.status === 'running'
+                        ? zh
+                          ? '合并中…'
+                          : 'Merging…'
+                        : task.status === 'completed'
+                          ? zh
+                            ? '完成'
+                            : 'Done'
+                          : task.status === 'failed'
+                            ? zh
+                              ? '失败'
+                              : 'Failed'
+                            : task.status === 'cancelled'
+                              ? zh
+                                ? '已取消'
+                                : 'Cancelled'
+                              : zh
+                                ? '准备中…'
+                                : 'Preparing…'}
+                    </span>
                     <span className="mono">{Math.round(task.progress.ratio * 100)}%</span>
                   </div>
                 </div>
               )}
               {task && (
-                <div className={`progress${task.status === 'completed' ? ' progress-success' : task.status === 'failed' ? ' progress-danger' : ''}`}>
+                <div
+                  className={`progress${task.status === 'completed' ? ' progress-success' : task.status === 'failed' ? ' progress-danger' : ''}`}
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(task.progress.ratio * 100)}
+                  aria-label={t('convert.progress')}
+                >
                   <div className="bar" style={{ width: `${task.progress.ratio * 100}%` }} />
                 </div>
               )}
-              {task?.error && <div className="xs" style={{ color: 'var(--danger)' }}>{task.error.message}</div>}
+              {task?.error && (
+                <div className="xs" style={{ color: 'var(--danger)' }}>
+                  {task.error.message}
+                </div>
+              )}
 
               <button
                 className="btn btn-primary btn-block btn-lg"
@@ -329,22 +428,30 @@ export function MergePage() {
                 disabled={rows.length < 2 || busy || !!running}
               >
                 <IconMerge size={16} />
-                {running ? (zh ? '合并中…' : 'Merging…') : (zh ? '开始合并' : 'Start merge')}
+                {running ? (zh ? '合并中…' : 'Merging…') : zh ? '开始合并' : 'Start merge'}
               </button>
 
               {running && (
-                <button className="btn btn-danger btn-block" onClick={() => void cancelAdhoc(task!.id)}>
+                <button
+                  className="btn btn-danger btn-block"
+                  onClick={() => void cancelAdhoc(task!.id)}
+                >
                   {zh ? '取消' : 'Cancel'}
                 </button>
               )}
 
               {task?.result && (
                 <button className="btn btn-success btn-block" onClick={() => void download()}>
-                  <IconDownload size={15} /> {zh ? '下载结果' : 'Download'} · {fmtSize(task.result.sizeBytes)}
+                  <IconDownload size={15} /> {zh ? '下载结果' : 'Download'} ·{' '}
+                  {fmtSize(task.result.sizeBytes)}
                 </button>
               )}
 
-              {rows.length < 2 && <div className="xs muted" style={{ textAlign: 'center' }}>{zh ? '至少需要两个文件' : 'At least two files required'}</div>}
+              {rows.length < 2 && (
+                <div className="xs muted" style={{ textAlign: 'center' }}>
+                  {zh ? '至少需要两个文件' : 'At least two files required'}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -358,7 +465,9 @@ export function MergePage() {
         onClose={() => setShowResult(false)}
         footer={
           <>
-            <button className="btn" onClick={() => setShowResult(false)}>{zh ? '关闭' : 'Close'}</button>
+            <button className="btn" onClick={() => setShowResult(false)}>
+              {zh ? '关闭' : 'Close'}
+            </button>
             <button className="btn btn-primary" onClick={() => void download()}>
               <IconDownload size={14} /> {zh ? '下载' : 'Download'}
             </button>
@@ -367,10 +476,18 @@ export function MergePage() {
       >
         {task?.result && (
           <div className="kv">
-            <dt>{zh ? '文件' : 'File'}</dt><dd className="mono">{task.result.fileName}</dd>
-            <dt>{zh ? '大小' : 'Size'}</dt><dd className="mono">{fmtSize(task.result.sizeBytes)}</dd>
-            <dt>{zh ? '时长' : 'Duration'}</dt><dd className="mono">{fmtDuration(task.result.outputProbe?.durationMs)}</dd>
-            {task.result.outputPath && (<><dt>{zh ? '位置' : 'Path'}</dt><dd className="mono xs">{task.result.outputPath}</dd></>)}
+            <dt>{zh ? '文件' : 'File'}</dt>
+            <dd className="mono">{task.result.fileName}</dd>
+            <dt>{zh ? '大小' : 'Size'}</dt>
+            <dd className="mono">{fmtSize(task.result.sizeBytes)}</dd>
+            <dt>{zh ? '时长' : 'Duration'}</dt>
+            <dd className="mono">{fmtDuration(task.result.outputProbe?.durationMs)}</dd>
+            {task.result.outputPath && (
+              <>
+                <dt>{zh ? '位置' : 'Path'}</dt>
+                <dd className="mono xs">{task.result.outputPath}</dd>
+              </>
+            )}
           </div>
         )}
       </Modal>

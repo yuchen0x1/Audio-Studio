@@ -6,14 +6,23 @@ import { useEffect, useMemo, useState } from 'react';
 import { FORMATS } from '@audio-studio/shared';
 import { useI18n, useT } from '../i18n';
 import {
-  useHistory, filterHistory,
-  type HistoryRecord, type HistoryKindFilter, type HistoryStatusFilter,
+  useHistory,
+  filterHistory,
+  type HistoryRecord,
+  type HistoryKindFilter,
+  type HistoryStatusFilter,
 } from '../stores/history';
 import { reexecuteFromHistory } from '../stores/session';
 import { toast } from '../stores/toast';
 import { isDesktop, revealOutput } from '../platform';
 import { fmtElapsed, fmtTime } from '../utils/format';
-import { IconHistory, IconTrash, IconRefresh, IconExternal, IconWarning } from '../components/Icons';
+import {
+  IconHistory,
+  IconTrash,
+  IconRefresh,
+  IconExternal,
+  IconWarning,
+} from '../components/Icons';
 
 export function HistoryPage() {
   const t = useT();
@@ -34,7 +43,9 @@ export function HistoryPage() {
 
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const rows = useMemo(
     () => filterHistory(records, query, statusFilter, kindFilter),
@@ -82,6 +93,7 @@ export function HistoryPage() {
             className="input"
             value={query}
             placeholder={t('history.searchPlaceholder')}
+            aria-label={t('common.search')}
             onChange={(e) => setQuery(e.target.value)}
           />
           <select
@@ -118,7 +130,9 @@ export function HistoryPage() {
       ) : rows.length === 0 ? (
         <div className="card">
           <div className="empty">
-            <div className="empty-icon"><IconHistory size={26} /></div>
+            <div className="empty-icon">
+              <IconHistory size={26} />
+            </div>
             <div className="empty-title">
               {records.length === 0 ? t('history.empty') : S.noMatch}
             </div>
@@ -178,9 +192,12 @@ interface RowProps {
 function HistoryRow({ rec, expanded, onToggle, onReexecute, onReveal, onDelete, S }: RowProps) {
   const t = useT();
   const hasError = rec.status === 'failed' && !!rec.errorMessage;
-  const kindLabel = rec.kind === 'convert' ? t('history.kind.convert')
-    : rec.kind === 'trim' ? t('history.kind.trim')
-    : t('history.kind.merge');
+  const kindLabel =
+    rec.kind === 'convert'
+      ? t('history.kind.convert')
+      : rec.kind === 'trim'
+        ? t('history.kind.trim')
+        : t('history.kind.merge');
   const target = rec.targetFormat
     ? (FORMATS[rec.targetFormat as keyof typeof FORMATS]?.label ?? rec.targetFormat)
     : '--';
@@ -194,27 +211,45 @@ function HistoryRow({ rec, expanded, onToggle, onReexecute, onReveal, onDelete, 
         <td className="xs mono" style={{ whiteSpace: 'nowrap', color: 'var(--fg-2)' }}>
           {fmtTime(rec.createdAt)}
         </td>
-        <td><span className="badge">{kindLabel}</span></td>
         <td>
-          <span className="truncate" style={{ display: 'inline-block', maxWidth: 220 }} title={rec.sourceLabel}>
+          <span className="badge">{kindLabel}</span>
+        </td>
+        <td>
+          <span
+            className="truncate"
+            style={{ display: 'inline-block', maxWidth: 220 }}
+            title={rec.sourceLabel}
+          >
             {rec.sourceLabel}
           </span>
         </td>
-        <td><span className="badge badge-accent">{target}</span></td>
         <td>
-          <span className="truncate mono xs" style={{ display: 'inline-block', maxWidth: 220 }} title={rec.fileName ?? rec.outputPath}>
+          <span className="badge badge-accent">{target}</span>
+        </td>
+        <td>
+          <span
+            className="truncate mono xs"
+            style={{ display: 'inline-block', maxWidth: 220 }}
+            title={rec.fileName ?? rec.outputPath}
+          >
             {rec.fileName ?? rec.outputPath ?? '--'}
           </span>
         </td>
         <td>
-          <span className={`badge ${
-            rec.status === 'completed' ? 'badge-success'
-            : rec.status === 'failed' ? 'badge-danger'
-            : 'badge-warning'
-          }`}>
-            {rec.status === 'completed' ? t('status.completed')
-              : rec.status === 'failed' ? t('status.failed')
-              : t('status.cancelled')}
+          <span
+            className={`badge ${
+              rec.status === 'completed'
+                ? 'badge-success'
+                : rec.status === 'failed'
+                  ? 'badge-danger'
+                  : 'badge-warning'
+            }`}
+          >
+            {rec.status === 'completed'
+              ? t('status.completed')
+              : rec.status === 'failed'
+                ? t('status.failed')
+                : t('status.cancelled')}
           </span>
         </td>
         <td className="xs mono" style={{ whiteSpace: 'nowrap', color: 'var(--fg-2)' }}>
@@ -228,12 +263,21 @@ function HistoryRow({ rec, expanded, onToggle, onReexecute, onReveal, onDelete, 
                 {S.openLocation}
               </button>
             )}
-            <button className="btn btn-sm btn-ghost" onClick={onReexecute} title={t('history.reexecute')}>
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={onReexecute}
+              title={t('history.reexecute')}
+            >
               <IconRefresh size={14} />
               {S.reexecuteShort}
             </button>
             {hasError && (
-              <button className="btn btn-sm btn-ghost" onClick={onToggle} title={t('history.error')}>
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={onToggle}
+                title={t('history.error')}
+                aria-expanded={expanded}
+              >
                 <IconWarning size={14} />
                 {expanded ? S.hideError : S.showError}
               </button>
@@ -242,6 +286,7 @@ function HistoryRow({ rec, expanded, onToggle, onReexecute, onReveal, onDelete, 
               className="btn btn-sm btn-ghost"
               onClick={onDelete}
               title={t('common.delete')}
+              aria-label={t('common.delete')}
               style={{ color: 'var(--danger)' }}
             >
               <IconTrash size={14} />

@@ -10,7 +10,7 @@ export interface PeaksResult {
   durationMs: number;
 }
 
-const MAX_FULL_DECODE_BYTES = 60 * 1024 * 1024;   // 60MB 内全质量解码
+const MAX_FULL_DECODE_BYTES = 60 * 1024 * 1024; // 60MB 内全质量解码
 const DOWNSAMPLE_RATE = 8000;
 
 async function decodeFull(file: Blob): Promise<AudioBuffer> {
@@ -80,7 +80,7 @@ export function drawWaveform(
   canvas: HTMLCanvasElement,
   peaks: Float32Array,
   opts: {
-    progress?: number;          // 0..1 已播放比例
+    progress?: number; // 0..1 已播放比例
     selection?: [number, number] | null; // 0..1 选区
     color?: string;
     playedColor?: string;

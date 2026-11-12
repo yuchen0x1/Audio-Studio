@@ -18,11 +18,25 @@ const PRECACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+  // 保留 waiting 状态，交给页面在用户确认后发送 SKIP_WAITING。
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then((cache) => cache.addAll(PRECACHE).catch(() => undefined))
-      .then(() => self.skipWaiting()),
+      .then((cache) => cache.addAll(PRECACHE).catch(() => undefined)),
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
+  if (event.data?.type === 'CLEAR_CACHES') {
+    event.waitUntil(
+      caches.keys()
+        .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+        .then(() => event.ports?.[0]?.postMessage({ ok: true })),
+    );
+  }
 });
 
 self.addEventListener('activate', (event) => {

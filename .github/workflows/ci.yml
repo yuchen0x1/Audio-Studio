@@ -40,8 +40,26 @@ jobs:
       - name: 类型检查
         run: pnpm -r typecheck
 
+      - name: ESLint
+        run: pnpm lint
+
+      - name: 格式检查
+        run: pnpm format:check
+
       - name: 单元测试（shared + web）
         run: pnpm test
+
+      - name: 覆盖率
+        run: pnpm test:coverage
+
+      - name: 上传覆盖率报告
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage
+          path: |
+            packages/shared/coverage/lcov.info
+            apps/web/coverage/lcov.info
+          retention-days: 7
 
       - name: 构建 Web
         run: pnpm build:web
@@ -68,10 +86,18 @@ jobs:
           cache: pnpm
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri -> target
+
+      - name: Rust 格式检查
+        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
+
+      - name: Clippy
+        run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets --locked -- -D warnings
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -138,6 +164,10 @@ jobs:
       - name: 单元测试
         working-directory: apps/android
         run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Android Lint
+        working-directory: apps/android
+        run: ./gradlew lintDebug --no-daemon
 
       - name: 构建 Debug APK
         working-directory: apps/android

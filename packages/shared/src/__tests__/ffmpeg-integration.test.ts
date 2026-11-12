@@ -7,13 +7,30 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync, statSync, readdirSync, readFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+  existsSync,
+  statSync,
+  readdirSync,
+  readFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
-  buildConvertArgs, buildTrimArgs, buildMergeArgs,
-  defaultParamsFor, detectFormat, classifyEngineOutput,
-  EncodeParams, FormatId, ConvertJob, TrimJob, MergeJob,
+  buildConvertArgs,
+  buildTrimArgs,
+  buildMergeArgs,
+  defaultParamsFor,
+  detectFormat,
+  classifyEngineOutput,
+  EncodeParams,
+  FormatId,
+  ConvertJob,
+  TrimJob,
+  MergeJob,
 } from '../index';
 
 const hasFFmpeg = spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' }).status === 0;
@@ -34,14 +51,27 @@ interface ProbeOut {
 }
 
 function ffprobe(file: string): ProbeOut {
-  const r = spawnSync('ffprobe', [
-    '-v', 'error',
-    '-show_entries', 'stream=codec_name,sample_rate,channels,bit_rate:format=duration,format_name,bit_rate',
-    '-of', 'json', file,
-  ], { encoding: 'utf-8', maxBuffer: 8 * 1024 * 1024 });
+  const r = spawnSync(
+    'ffprobe',
+    [
+      '-v',
+      'error',
+      '-show_entries',
+      'stream=codec_name,sample_rate,channels,bit_rate:format=duration,format_name,bit_rate',
+      '-of',
+      'json',
+      file,
+    ],
+    { encoding: 'utf-8', maxBuffer: 8 * 1024 * 1024 },
+  );
   if (r.status !== 0) throw new Error(`ffprobe failed for ${file}: ${r.stderr}`);
   const json = JSON.parse(r.stdout) as {
-    streams?: Array<{ codec_name: string; sample_rate?: string; channels?: number; bit_rate?: string }>;
+    streams?: Array<{
+      codec_name: string;
+      sample_rate?: string;
+      channels?: number;
+      bit_rate?: string;
+    }>;
     format?: { duration?: string; format_name?: string; bit_rate?: string };
   };
   const s = json.streams?.[0];
@@ -51,19 +81,37 @@ function ffprobe(file: string): ProbeOut {
     durationSec: parseFloat(json.format?.duration ?? '0'),
     sampleRate: s.sample_rate ? parseInt(s.sample_rate, 10) : undefined,
     channels: s.channels,
-    bitRate: (json.format?.bit_rate ?? s.bit_rate) ? parseInt(json.format?.bit_rate ?? s.bit_rate!, 10) : undefined,
+    bitRate:
+      (json.format?.bit_rate ?? s.bit_rate)
+        ? parseInt(json.format?.bit_rate ?? s.bit_rate!, 10)
+        : undefined,
     formatName: json.format?.format_name,
   };
 }
 
 /** 生成测试源：正弦波 */
-function genTone(out: string, opts: {
-  codec: string; seconds: number; sampleRate: number; channels: number; bitrate?: string; extra?: string[];
-}): void {
+function genTone(
+  out: string,
+  opts: {
+    codec: string;
+    seconds: number;
+    sampleRate: number;
+    channels: number;
+    bitrate?: string;
+    extra?: string[];
+  },
+): void {
   const args = [
-    '-hide_banner', '-loglevel', 'error', '-y',
-    '-f', 'lavfi', '-t', String(opts.seconds),
-    '-i', `sine=frequency=440:sample_rate=${opts.sampleRate}:duration=${opts.seconds}`,
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-y',
+    '-f',
+    'lavfi',
+    '-t',
+    String(opts.seconds),
+    '-i',
+    `sine=frequency=440:sample_rate=${opts.sampleRate}:duration=${opts.seconds}`,
   ];
   if (opts.channels === 2) args.push('-ac', '2');
   args.push('-c:a', opts.codec);
@@ -76,7 +124,13 @@ function genTone(out: string, opts: {
 
 let workDir = '';
 
-function makeJob(format: FormatId, src: string, outDir: string, name: string, params?: EncodeParams): ConvertJob {
+function makeJob(
+  format: FormatId,
+  src: string,
+  outDir: string,
+  name: string,
+  params?: EncodeParams,
+): ConvertJob {
   mkdirSync(outDir, { recursive: true }); // FFmpeg 不会自动创建输出目录
   return {
     kind: 'convert',
@@ -99,20 +153,27 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
   });
   afterAll(() => {
     if (workDir && existsSync(workDir)) {
-      try { rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        rmSync(workDir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 
   // ---------- 用例 1~7：格式互转 ----------
   const conversions: Array<{
-    name: string; from: FormatId; to: FormatId;
+    name: string;
+    from: FormatId;
+    to: FormatId;
     gen: string; // 生成源的 codec
     expectCodec: (p: ProbeOut) => boolean;
     expect?: (p: ProbeOut, params: EncodeParams) => void;
   }> = [
     {
       name: '1. MP3 → WAV',
-      from: 'mp3', to: 'wav',
+      from: 'mp3',
+      to: 'wav',
       gen: 'libmp3lame',
       expectCodec: (p) => p.codec.startsWith('pcm_'),
       expect: (p) => {
@@ -123,7 +184,8 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
     },
     {
       name: '2. WAV → MP3',
-      from: 'wav', to: 'mp3',
+      from: 'wav',
+      to: 'mp3',
       gen: 'pcm_s16le',
       expectCodec: (p) => p.codec === 'mp3',
       expect: (p, params) => {
@@ -132,31 +194,36 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
     },
     {
       name: '3. FLAC → MP3',
-      from: 'flac', to: 'mp3',
+      from: 'flac',
+      to: 'mp3',
       gen: 'flac',
       expectCodec: (p) => p.codec === 'mp3',
     },
     {
       name: '4. MP3 → FLAC',
-      from: 'mp3', to: 'flac',
+      from: 'mp3',
+      to: 'flac',
       gen: 'libmp3lame',
       expectCodec: (p) => p.codec === 'flac',
     },
     {
       name: '5. AAC → MP3',
-      from: 'aac', to: 'mp3',
+      from: 'aac',
+      to: 'mp3',
       gen: 'aac',
       expectCodec: (p) => p.codec === 'mp3',
     },
     {
       name: '6. OGG → WAV',
-      from: 'ogg', to: 'wav',
+      from: 'ogg',
+      to: 'wav',
       gen: 'libvorbis',
       expectCodec: (p) => p.codec.startsWith('pcm_'),
     },
     {
       name: '7. OPUS → MP3',
-      from: 'opus', to: 'mp3',
+      from: 'opus',
+      to: 'mp3',
       gen: 'libopus',
       expectCodec: (p) => p.codec === 'mp3',
     },
@@ -168,7 +235,13 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
       genTone(src, { codec: c.gen, seconds: 3, sampleRate: 44100, channels: 2, bitrate: '192k' });
       const outDir = path.join(workDir, `out_${c.to}`);
       const params = defaultParamsFor(c.to);
-      const job = makeJob(c.to, src, outDir, `result_${c.from}_to_${c.to}.${FORMAT_EXT(c.to)}`, params);
+      const job = makeJob(
+        c.to,
+        src,
+        outDir,
+        `result_${c.from}_to_${c.to}.${FORMAT_EXT(c.to)}`,
+        params,
+      );
       const args = buildConvertArgs(job, {});
       const r = runFFmpeg(args);
       expect(r.code, `stderr: ${r.stderr.slice(-1200)}`).toBe(0);
@@ -189,7 +262,13 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
   // ---------- 用例 14/15/16：特殊文件名与路径 ----------
   it('14. 文件名包含中文', () => {
     const src = path.join(workDir, '中文 源文件 测试.mp3');
-    genTone(src, { codec: 'libmp3lame', seconds: 2, sampleRate: 44100, channels: 2, bitrate: '128k' });
+    genTone(src, {
+      codec: 'libmp3lame',
+      seconds: 2,
+      sampleRate: 44100,
+      channels: 2,
+      bitrate: '128k',
+    });
     const outDir = path.join(workDir, '输出目录');
     const job = makeJob('wav', src, outDir, '中文输出_测试.wav');
     const r = runFFmpeg(buildConvertArgs(job, {}));
@@ -200,17 +279,29 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
 
   it('15. 文件名包含特殊字符', () => {
     const src = path.join(workDir, "it's a #test & (v1) [final].mp3");
-    genTone(src, { codec: 'libmp3lame', seconds: 2, sampleRate: 44100, channels: 2, bitrate: '128k' });
+    genTone(src, {
+      codec: 'libmp3lame',
+      seconds: 2,
+      sampleRate: 44100,
+      channels: 2,
+      bitrate: '128k',
+    });
     const outDir = path.join(workDir, 'out');
-    const job = makeJob('mp3', src, outDir, "result #1 & (copy) [ok].mp3");
+    const job = makeJob('mp3', src, outDir, 'result #1 & (copy) [ok].mp3');
     const r = runFFmpeg(buildConvertArgs(job, {}));
     expect(r.code, r.stderr.slice(-800)).toBe(0);
-    expect(existsSync(path.join(outDir, "result #1 & (copy) [ok].mp3"))).toBe(true);
+    expect(existsSync(path.join(outDir, 'result #1 & (copy) [ok].mp3'))).toBe(true);
   });
 
   it('16. 输出路径包含空格', () => {
     const src = path.join(workDir, 'plain.mp3');
-    genTone(src, { codec: 'libmp3lame', seconds: 2, sampleRate: 44100, channels: 2, bitrate: '128k' });
+    genTone(src, {
+      codec: 'libmp3lame',
+      seconds: 2,
+      sampleRate: 44100,
+      channels: 2,
+      bitrate: '128k',
+    });
     const outDir = path.join(workDir, 'Audio Studio 输出 dir');
     const job = makeJob('wav', src, outDir, 'out put.wav');
     const r = runFFmpeg(buildConvertArgs(job, {}));
@@ -258,7 +349,9 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
     expect(p.durationSec).toBeGreaterThan(299);
     expect(p.durationSec).toBeLessThan(301);
     // 记录真实性能
-    console.log(`[perf] 5min WAV→MP3 用时 ${elapsed}ms, 输出 ${(statSync(path.join(outDir, 'large.mp3')).size / 1024 / 1024).toFixed(1)}MB`);
+    console.log(
+      `[perf] 5min WAV→MP3 用时 ${elapsed}ms, 输出 ${(statSync(path.join(outDir, 'large.mp3')).size / 1024 / 1024).toFixed(1)}MB`,
+    );
   }, 120_000);
 
   // ---------- 用例 10/11：损坏与不支持 ----------
@@ -297,11 +390,14 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
     const outDir = path.join(workDir, 'out');
     mkdirSync(outDir, { recursive: true });
     const job: TrimJob = {
-      kind: 'trim', taskId: 'it_trim',
+      kind: 'trim',
+      taskId: 'it_trim',
       source: { id: 'c', name: 'clip_src.wav', sizeBytes: statSync(src).size, path: src },
-      startMs: 1000, endMs: 2500,
+      startMs: 1000,
+      endMs: 2500,
       params: defaultParamsFor('mp3'),
-      outputFileName: 'clipped.mp3', outputDir: outDir,
+      outputFileName: 'clipped.mp3',
+      outputDir: outDir,
     };
     const r = runFFmpeg(buildTrimArgs(job, {}));
     expect(r.code, r.stderr.slice(-800)).toBe(0);
@@ -315,14 +411,21 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
     genTone(src, { codec: 'pcm_s16le', seconds: 6, sampleRate: 44100, channels: 2 });
     const outDir = path.join(workDir, 'out');
     mkdirSync(outDir, { recursive: true });
-    const segments: Array<[number, number]> = [[0, 2000], [2000, 4000], [4000, 6000]];
+    const segments: Array<[number, number]> = [
+      [0, 2000],
+      [2000, 4000],
+      [4000, 6000],
+    ];
     segments.forEach(([s, e], i) => {
       const job: TrimJob = {
-        kind: 'trim', taskId: `it_split${i}`,
+        kind: 'trim',
+        taskId: `it_split${i}`,
         source: { id: 's', name: 'split_src.wav', sizeBytes: statSync(src).size, path: src },
-        startMs: s, endMs: e,
+        startMs: s,
+        endMs: e,
         params: defaultParamsFor('wav'),
-        outputFileName: `part_0${i + 1}.wav`, outputDir: outDir,
+        outputFileName: `part_0${i + 1}.wav`,
+        outputDir: outDir,
       };
       const r = runFFmpeg(buildTrimArgs(job, {}));
       expect(r.code, r.stderr.slice(-600)).toBe(0);
@@ -341,14 +444,23 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
     const outDir = path.join(workDir, 'out');
     mkdirSync(outDir, { recursive: true });
     const job: MergeJob = {
-      kind: 'merge', taskId: 'it_merge',
+      kind: 'merge',
+      taskId: 'it_merge',
       items: [
-        { source: { id: 'a', name: 'm_a.wav', sizeBytes: statSync(a).size, path: a }, gainDb: -3, fadeInMs: 200 },
-        { source: { id: 'b', name: 'm_b.wav', sizeBytes: statSync(b).size, path: b }, fadeOutMs: 300 },
+        {
+          source: { id: 'a', name: 'm_a.wav', sizeBytes: statSync(a).size, path: a },
+          gainDb: -3,
+          fadeInMs: 200,
+        },
+        {
+          source: { id: 'b', name: 'm_b.wav', sizeBytes: statSync(b).size, path: b },
+          fadeOutMs: 300,
+        },
       ],
       gapMs: 500,
       params: defaultParamsFor('mp3'),
-      outputFileName: 'merged.mp3', outputDir: outDir,
+      outputFileName: 'merged.mp3',
+      outputDir: outDir,
     };
     const ctx = { resolvedSampleRate: 44100, resolvedChannels: 2 };
     const r = runFFmpeg(buildMergeArgs(job, ctx));
@@ -407,8 +519,19 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
 
 function FORMAT_EXT(f: FormatId): string {
   const map: Record<FormatId, string> = {
-    mp3: 'mp3', wav: 'wav', flac: 'flac', aac: 'aac', m4a: 'm4a', ogg: 'ogg',
-    opus: 'opus', wma: 'wma', aiff: 'aiff', ape: 'ape', ac3: 'ac3', amr: 'amr', alac: 'm4a',
+    mp3: 'mp3',
+    wav: 'wav',
+    flac: 'flac',
+    aac: 'aac',
+    m4a: 'm4a',
+    ogg: 'ogg',
+    opus: 'opus',
+    wma: 'wma',
+    aiff: 'aiff',
+    ape: 'ape',
+    ac3: 'ac3',
+    amr: 'amr',
+    alac: 'm4a',
   };
   return map[f];
 }

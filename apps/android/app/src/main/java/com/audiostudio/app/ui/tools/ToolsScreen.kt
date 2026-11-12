@@ -2,6 +2,7 @@ package com.audiostudio.app.ui.tools
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,9 +29,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.audiostudio.app.R
 import com.audiostudio.app.ui.MainViewModel
 import com.audiostudio.app.ui.SelectionTarget
 import com.audiostudio.app.ui.components.Hint
@@ -40,7 +43,7 @@ import com.audiostudio.app.ui.components.TaskRow
 import com.audiostudio.app.ui.components.formatBytes
 import com.audiostudio.app.ui.components.formatDuration
 
-private enum class ToolMode(val zh: String) { TRIM("剪辑"), MERGE("合并") }
+private enum class ToolMode(@StringRes val labelRes: Int) { TRIM(R.string.task_kind_trim), MERGE(R.string.task_kind_merge) }
 
 @Composable
 fun ToolsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
@@ -54,7 +57,7 @@ fun ToolsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("工具", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Text(stringResource(R.string.tools_title), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
 
         // 模式切换
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -65,7 +68,7 @@ fun ToolsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
-                        m.zh,
+                        stringResource(m.labelRes),
                         color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -78,13 +81,13 @@ fun ToolsScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
         }
 
         // 参数（输出格式等，与转换页共用当前参数）
-        SectionCard(title = "输出参数") {
+        SectionCard(title = stringResource(R.string.common_output_params)) {
             ParamPanel(vm)
         }
 
         val active = tasks.filter { it.status.isActive }
         if (active.isNotEmpty()) {
-            Text("进行中（${active.size}）", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+            Text(stringResource(R.string.common_active_count, active.size), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
             active.forEach { t ->
                 TaskRow(
                     task = t,
@@ -104,6 +107,8 @@ private fun TrimTool(vm: MainViewModel) {
     val selection by vm.trimSelection.collectAsState()
     val file = selection.firstOrNull()
     val dur = file?.probe?.durationMs
+    val endAfterStartMsg = stringResource(R.string.trim_end_after_start)
+    val startFailedMsg = stringResource(R.string.common_start_failed)
 
     var startMs by remember { mutableStateOf(0L) }
     var endMs by remember { mutableStateOf<Long?>(null) }
@@ -127,19 +132,19 @@ private fun TrimTool(vm: MainViewModel) {
         }
     }
 
-    SectionCard(title = "剪辑（选择起止时间导出）") {
+    SectionCard(title = stringResource(R.string.trim_section_title)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { picker.launch(arrayOf("audio/*")) }, modifier = Modifier.weight(1f)) {
-                Text(if (file == null) "选择音频文件" else "重新选择")
+                Text(if (file == null) stringResource(R.string.common_select_audio) else stringResource(R.string.common_reselect))
             }
             if (file != null) {
-                OutlinedButton(onClick = { vm.clearSelection(SelectionTarget.TRIM) }) { Text("清除") }
+                OutlinedButton(onClick = { vm.clearSelection(SelectionTarget.TRIM) }) { Text(stringResource(R.string.common_clear_selection)) }
             }
         }
 
         if (file == null) {
             Spacer(Modifier.height(8.dp))
-            Hint("导出区间采用输出侧 -ss/-t（采样级精确），与 Web/桌面版语义一致。")
+            Hint(stringResource(R.string.trim_hint))
             return@SectionCard
         }
 
@@ -147,18 +152,18 @@ private fun TrimTool(vm: MainViewModel) {
         Text(file.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, maxLines = 1)
         when (file.state) {
             com.audiostudio.app.ui.ImportState.IMPORTING ->
-                Text("探测中…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Text(stringResource(R.string.common_probing), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             com.audiostudio.app.ui.ImportState.FAILED ->
-                Text("读取失败：${file.error}", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                Text(stringResource(R.string.common_read_failed, file.error ?: ""), color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
             com.audiostudio.app.ui.ImportState.READY -> {
                 if (dur == null || dur <= 0) {
-                    Text("无法获取时长，无法剪辑", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    Text(stringResource(R.string.trim_no_duration), color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                 } else {
                     val s = startMs.coerceIn(0, dur - 100)
                     val e = (endMs ?: dur).coerceIn(s + 100, dur)
 
                     Text(
-                        "起点 ${formatDuration(s)} → 终点 ${formatDuration(e)}（时长 ${formatDuration(e - s)}）",
+                        stringResource(R.string.trim_range, formatDuration(s), formatDuration(e), formatDuration(e - s)),
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 13.sp,
                     )
@@ -167,13 +172,13 @@ private fun TrimTool(vm: MainViewModel) {
                         onValueChange = { v -> startMs = v.toLong().coerceIn(0, e - 100) },
                         valueRange = 0f..dur.toFloat(),
                     )
-                    Text("裁剪起点", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text(stringResource(R.string.trim_start_label), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     Slider(
                         value = e.toFloat(),
                         onValueChange = { v -> endMs = v.toLong().coerceIn(s + 100, dur) },
                         valueRange = 0f..dur.toFloat(),
                     )
-                    Text("裁剪终点", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text(stringResource(R.string.trim_end_label), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
 
@@ -181,16 +186,16 @@ private fun TrimTool(vm: MainViewModel) {
                     Button(
                         onClick = {
                             if (e <= s) {
-                                error = "结束时间必须大于开始时间"
+                                error = endAfterStartMsg
                             } else if (vm.startTrim(s, e)) {
                                 error = null
                             } else {
-                                error = "启动失败，请重试"
+                                error = startFailedMsg
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("导出选区")
+                        Text(stringResource(R.string.trim_export))
                     }
                 }
             }
@@ -201,6 +206,9 @@ private fun TrimTool(vm: MainViewModel) {
 @Composable
 private fun MergeTool(vm: MainViewModel) {
     val selection by vm.mergeSelection.collectAsState()
+    val selectFilesFirstMsg = stringResource(R.string.common_select_files_first)
+    val waitProbeMsg = stringResource(R.string.common_wait_probe)
+    val startFailedMsg = stringResource(R.string.common_start_failed)
     var gapMs by remember { mutableStateOf(1000f) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -208,19 +216,19 @@ private fun MergeTool(vm: MainViewModel) {
         if (uris.isNotEmpty()) vm.importFiles(SelectionTarget.MERGE, uris)
     }
 
-    SectionCard(title = "合并（按顺序拼接，可加间隔静音）") {
+    SectionCard(title = stringResource(R.string.merge_section_title)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { picker.launch(arrayOf("audio/*")) }, modifier = Modifier.weight(1f)) {
-                Text("选择文件（可多选）")
+                Text(stringResource(R.string.common_select_files_multi))
             }
             if (selection.isNotEmpty()) {
-                OutlinedButton(onClick = { vm.clearSelection(SelectionTarget.MERGE) }) { Text("清空") }
+                OutlinedButton(onClick = { vm.clearSelection(SelectionTarget.MERGE) }) { Text(stringResource(R.string.common_clear)) }
             }
         }
 
         if (selection.isEmpty()) {
             Spacer(Modifier.height(8.dp))
-            Hint("文件将按下方顺序拼接；间隔用静音填充（anullsrc），与共享层 buildMergeArgs 语义一致。")
+            Hint(stringResource(R.string.merge_hint))
             return@SectionCard
         }
 
@@ -244,28 +252,28 @@ private fun MergeTool(vm: MainViewModel) {
                         s.probe?.codec?.let { add(it) }
                     }.joinToString(" · ")
                     when (s.state) {
-                        com.audiostudio.app.ui.ImportState.IMPORTING -> Text("探测中…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                        com.audiostudio.app.ui.ImportState.FAILED -> Text("读取失败：${s.error}", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                        com.audiostudio.app.ui.ImportState.IMPORTING -> Text(stringResource(R.string.common_probing), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        com.audiostudio.app.ui.ImportState.FAILED -> Text(stringResource(R.string.common_read_failed, s.error ?: ""), color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                         else -> Text(info, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                 }
                 TextButton(onClick = { vm.moveSelection(SelectionTarget.MERGE, i, -1) }, enabled = i > 0) {
-                    Text("上移", fontSize = 12.sp)
+                    Text(stringResource(R.string.common_move_up), fontSize = 12.sp)
                 }
                 TextButton(
                     onClick = { vm.moveSelection(SelectionTarget.MERGE, i, 1) },
                     enabled = i < selection.size - 1,
                 ) {
-                    Text("下移", fontSize = 12.sp)
+                    Text(stringResource(R.string.common_move_down), fontSize = 12.sp)
                 }
                 TextButton(onClick = { vm.removeSelection(SelectionTarget.MERGE, s.uri) }) {
-                    Text("移除", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_remove), fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
                 }
             }
         }
 
         Spacer(Modifier.height(10.dp))
-        Text("文件间隔 ${(gapMs / 1000f)} 秒", color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
+        Text(stringResource(R.string.merge_gap, (gapMs / 1000f).toString()), color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
         Slider(
             value = gapMs,
             onValueChange = { gapMs = it },
@@ -279,17 +287,17 @@ private fun MergeTool(vm: MainViewModel) {
             onClick = {
                 val notReady = selection.any { it.state == com.audiostudio.app.ui.ImportState.IMPORTING }
                 when {
-                    selection.isEmpty() -> error = "请先选择文件"
-                    notReady -> error = "请等待文件探测完成"
+                    selection.isEmpty() -> error = selectFilesFirstMsg
+                    notReady -> error = waitProbeMsg
                     else -> {
-                        if (vm.startMerge(gapMs.toInt())) error = null else error = "启动失败，请重试"
+                        if (vm.startMerge(gapMs.toInt())) error = null else error = startFailedMsg
                     }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = selection.isNotEmpty(),
         ) {
-            Text("开始合并（${selection.size} 个）")
+            Text(stringResource(R.string.merge_start_count, selection.size))
         }
     }
 }

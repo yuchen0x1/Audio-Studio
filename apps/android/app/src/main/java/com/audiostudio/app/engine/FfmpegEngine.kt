@@ -1,10 +1,12 @@
 package com.audiostudio.app.engine
 
+import androidx.annotation.StringRes
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.FFmpegKitConfig
 import com.arthenica.ffmpegkit.FFmpegSession
 import com.arthenica.ffmpegkit.FFprobeKit
 import com.arthenica.ffmpegkit.Statistics
+import com.audiostudio.app.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -18,8 +20,9 @@ data class FormatCapability(
     val id: String,
     val canEncode: Boolean,
     val encoder: String? = null,
-    /** 不能编码的原因（展示在 UI 上，杜绝"假支持"） */
-    val reason: String? = null,
+    /** Reason it cannot encode (string resource + arg, shown in the UI to avoid false support). */
+    @StringRes val reasonRes: Int? = null,
+    val reasonArg: String? = null,
 )
 
 data class EngineCapabilities(
@@ -115,7 +118,8 @@ class FfmpegEngine {
                 } else {
                     FormatCapability(
                         f.id, false, null,
-                        "当前引擎缺少编码器：${f.encoderCandidates.joinToString("/")}",
+                        reasonRes = R.string.engine_missing_encoder,
+                        reasonArg = f.encoderCandidates.joinToString("/"),
                     )
                 }
             }

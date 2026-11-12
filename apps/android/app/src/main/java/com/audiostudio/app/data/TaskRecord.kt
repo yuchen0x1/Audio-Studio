@@ -1,5 +1,7 @@
 package com.audiostudio.app.data
 
+import androidx.annotation.StringRes
+import com.audiostudio.app.R
 import com.audiostudio.app.engine.EncodeParams
 import com.audiostudio.app.engine.Formats
 import org.json.JSONArray
@@ -7,14 +9,14 @@ import org.json.JSONObject
 
 enum class TaskKind { CONVERT, TRIM, MERGE }
 
-enum class TaskStatus(val zh: String) {
-    QUEUED("排队中"),
-    PREPARING("准备中"),
-    RUNNING("转换中"),
-    PAUSED("已暂停"),
-    COMPLETED("已完成"),
-    FAILED("失败"),
-    CANCELLED("已取消"),
+enum class TaskStatus(@StringRes val labelRes: Int) {
+    QUEUED(R.string.status_queued),
+    PREPARING(R.string.status_preparing),
+    RUNNING(R.string.status_running),
+    PAUSED(R.string.status_paused),
+    COMPLETED(R.string.status_completed),
+    FAILED(R.string.status_failed),
+    CANCELLED(R.string.status_cancelled),
     ;
 
     val isActive: Boolean
@@ -86,10 +88,11 @@ data class TaskRecord(
         TaskKind.CONVERT -> durationMs
     }
 
-    fun kindZh(): String = when (kind) {
-        TaskKind.CONVERT -> "转换"
-        TaskKind.TRIM -> "剪辑"
-        TaskKind.MERGE -> "合并"
+    @StringRes
+    fun kindLabelRes(): Int = when (kind) {
+        TaskKind.CONVERT -> R.string.task_kind_convert
+        TaskKind.TRIM -> R.string.task_kind_trim
+        TaskKind.MERGE -> R.string.task_kind_merge
     }
 
     fun outputDisplayPath(): String? = outputPath ?: outputUri

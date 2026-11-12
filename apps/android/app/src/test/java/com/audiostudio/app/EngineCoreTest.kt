@@ -42,9 +42,9 @@ class ErrorClassifyTest {
     }
 
     @Test
-    fun `中文提示非空`() {
+    fun `错误码均绑定提示资源`() {
         EngineErrorCode.entries.forEach {
-            assertTrue(it.zhMessage.isNotBlank())
+            assertTrue(it.messageRes != 0)
         }
     }
 }

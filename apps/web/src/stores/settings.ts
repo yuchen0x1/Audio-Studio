@@ -1,6 +1,6 @@
 /** 用户设置（localStorage 持久化），三平台语义一致 */
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { FormatId } from '@audio-studio/shared';
 import { DEFAULT_FILENAME_TEMPLATE } from '@audio-studio/shared';
 import type { Lang } from '../i18n';
@@ -10,14 +10,15 @@ export type ThemeMode = 'dark' | 'light' | 'system';
 export interface SettingsState {
   defaultFormat: FormatId;
   defaultBitrateKbps: number;
-  outputDirName: string;          // Web: 下载提示用；Desktop: 真实目录
+  outputDirName: string; // Web: 下载提示用；Desktop: 真实目录
   filenameTemplate: string;
-  concurrency: number;            // 1..4
+  concurrency: number; // 1..4
   theme: ThemeMode;
   lang: Lang;
   notifyOnDone: boolean;
-  keepOriginal: boolean;          // 永不覆盖源文件（默认开启且不可关闭核心语义）
-  autoDownload: boolean;          // Web: 完成后自动下载
+  keepOriginal: boolean; // 永不覆盖源文件（默认开启且不可关闭核心语义）
+  autoDownload: boolean; // Web: 完成后自动下载
+  autoCheckUpdates: boolean; // 检查 GitHub 新版本（最多每 24 小时一次）
   update: (patch: Partial<SettingsState>) => void;
   reset: () => void;
 }
@@ -33,30 +34,63 @@ const DEFAULTS = {
   notifyOnDone: true,
   keepOriginal: true,
   autoDownload: false,
+  autoCheckUpdates: true,
 };
 
-export const useSettings = create<SettingsState>()(persist(
-  (set) => ({
-    ...DEFAULTS,
-    update: (patch) => set(patch),
-    reset: () => set({ ...DEFAULTS }),
-  }),
-  {
-    name: 'as-settings',
-    partialize: (s) => ({
-      defaultFormat: s.defaultFormat,
-      defaultBitrateKbps: s.defaultBitrateKbps,
-      outputDirName: s.outputDirName,
-      filenameTemplate: s.filenameTemplate,
-      concurrency: s.concurrency,
-      theme: s.theme,
-      lang: s.lang,
-      notifyOnDone: s.notifyOnDone,
-      keepOriginal: s.keepOriginal,
-      autoDownload: s.autoDownload,
-    }),
+const fallbackStorage = new Map<string, string>();
+const memoryStorage: Storage = {
+  getItem: (key) => fallbackStorage.get(key) ?? null,
+  setItem: (key, value) => {
+    fallbackStorage.set(key, value);
   },
-));
+  removeItem: (key) => {
+    fallbackStorage.delete(key);
+  },
+  clear: () => fallbackStorage.clear(),
+  key: (index) => Array.from(fallbackStorage.keys())[index] ?? null,
+  get length() {
+    return fallbackStorage.size;
+  },
+};
+
+function getSettingsStorage(): Storage {
+  try {
+    const storage = globalThis.localStorage;
+    const probe = '__audio_studio_settings_probe__';
+    storage.setItem(probe, '1');
+    storage.removeItem(probe);
+    return storage;
+  } catch {
+    return memoryStorage;
+  }
+}
+
+export const useSettings = create<SettingsState>()(
+  persist(
+    (set) => ({
+      ...DEFAULTS,
+      update: (patch) => set(patch),
+      reset: () => set({ ...DEFAULTS }),
+    }),
+    {
+      name: 'as-settings',
+      partialize: (s) => ({
+        defaultFormat: s.defaultFormat,
+        defaultBitrateKbps: s.defaultBitrateKbps,
+        outputDirName: s.outputDirName,
+        filenameTemplate: s.filenameTemplate,
+        concurrency: s.concurrency,
+        theme: s.theme,
+        lang: s.lang,
+        notifyOnDone: s.notifyOnDone,
+        keepOriginal: s.keepOriginal,
+        autoDownload: s.autoDownload,
+        autoCheckUpdates: s.autoCheckUpdates,
+      }),
+      storage: createJSONStorage(getSettingsStorage),
+    },
+  ),
+);
 
 /** 应用主题到 <html data-theme> */
 export function applyTheme(mode: ThemeMode): void {

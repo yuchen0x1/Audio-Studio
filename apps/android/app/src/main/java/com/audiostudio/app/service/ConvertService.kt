@@ -12,6 +12,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.audiostudio.app.App
 import com.audiostudio.app.MainActivity
 import com.audiostudio.app.R
@@ -42,11 +43,12 @@ class ConvertService : android.app.Service() {
         createChannel()
         startInForeground()
         cancelReceiver = CancelReceiver().also {
-            if (Build.VERSION.SDK_INT >= 33) {
-                registerReceiver(it, IntentFilter(ACTION_CANCEL), RECEIVER_NOT_EXPORTED)
-            } else {
-                registerReceiver(it, IntentFilter(ACTION_CANCEL))
-            }
+            ContextCompat.registerReceiver(
+                this,
+                it,
+                IntentFilter(ACTION_CANCEL),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
         }
         val app = application as App
         scope.launch {
@@ -84,7 +86,7 @@ class ConvertService : android.app.Service() {
     }
 
     private fun startInForeground() {
-        val notification = baseNotification("Audio Studio 准备中…", null, 0)
+        val notification = baseNotification(getString(R.string.notif_preparing), null, 0)
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
@@ -95,19 +97,13 @@ class ConvertService : android.app.Service() {
     private fun notifyProgress(active: List<com.audiostudio.app.data.TaskRecord>) {
         val running = active.filter { it.status == TaskStatus.RUNNING || it.status == TaskStatus.PAUSED }
         val current = running.maxByOrNull { it.updatedAt } ?: active.maxByOrNull { it.updatedAt } ?: return
-        val statusZh = when (current.status) {
-            TaskStatus.PREPARING -> "准备中"
-            TaskStatus.RUNNING -> "转换中"
-            TaskStatus.PAUSED -> "已暂停"
-            TaskStatus.QUEUED -> "排队中"
-            else -> current.status.zh
-        }
+        val statusText = getString(current.status.labelRes)
         val text = buildString {
-            append(statusZh)
+            append(statusText)
             append(" · ")
             append(current.outputName ?: current.sourceName)
             val others = active.size - 1
-            if (others > 0) append("（共 ${active.size} 个任务）")
+            if (others > 0) append(getString(R.string.notif_tasks_suffix, active.size))
         }
         val progress = (current.progress * 100).toInt().coerceIn(0, 100)
         val indeterminate = current.status == TaskStatus.PREPARING || current.status == TaskStatus.QUEUED
@@ -128,13 +124,13 @@ class ConvertService : android.app.Service() {
         )
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
-            .setContentTitle("Audio Studio 正在转换")
+            .setContentTitle(getString(R.string.notif_title))
             .setContentText(text)
             .setContentIntent(openIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(0, "取消全部", cancelIntent)
+            .addAction(0, getString(R.string.notif_cancel_all), cancelIntent)
         if (progress != null && max > 0) {
             builder.setProgress(max, progress, false)
         } else {
@@ -150,10 +146,10 @@ class ConvertService : android.app.Service() {
         if (Build.VERSION.SDK_INT >= 26) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "转换任务",
+                getString(R.string.notif_channel_name),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "音频转换进度与控制"
+                description = getString(R.string.notif_channel_desc)
                 setShowBadge(false)
             }
             notificationManager().createNotificationChannel(channel)

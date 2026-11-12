@@ -26,6 +26,10 @@ describe('translate', () => {
   it('按语言返回对应文案', () => {
     expect(translate('zh', 'nav.home')).toBe('首页');
     expect(translate('en', 'nav.home')).toBe('Home');
+    expect(translate('zh', 'updates.available', { version: 'v0.2.0' })).toBe('发现新版本 v0.2.0');
+    expect(translate('en', 'updates.available', { version: 'v0.2.0' })).toBe(
+      'Version v0.2.0 is available',
+    );
   });
 
   it('替换 {var} 占位符', () => {
