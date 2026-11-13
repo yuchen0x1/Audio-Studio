@@ -1,10 +1,9 @@
 /**
- * 统一音频引擎契约（三平台实现同一接口，UI 完全与引擎解耦）。
+ * 统一音频引擎契约（Web 与 Windows 两端实现同一接口，UI 完全与引擎解耦）。
  *
  * 实现方：
  * - Web:    WasmFfmpegEngine (ffmpeg.wasm, Web Worker 内运行)
  * - Desktop: NativeFfmpegEngine (Tauri Rust 进程 spawn ffmpeg.exe)
- * - Android: MediaCodecEngine / FfmpegCliEngine
  */
 import type { FormatId } from './formats';
 import type { EncodeParams } from './params';

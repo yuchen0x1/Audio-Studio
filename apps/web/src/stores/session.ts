@@ -96,13 +96,12 @@ export const useSession = create<SessionState>((set, get) => ({
 
   addFiles: async (sources) => {
     if (!sources.length) return;
-    const { defaultFormat, defaultBitrateKbps, filenameTemplate, outputDirName } =
-      useSettings.getState();
+    const { defaultFormat, defaultBitrateKbps, filenameTemplate } = useSettings.getState();
     const newFiles: SessionFile[] = [];
 
     for (const src of sources) {
       // 去重：同名同大小
-      const dup = get().files.some(
+      const dup = [...get().files, ...newFiles].some(
         (f) =>
           f.source.name === src.name &&
           f.source.sizeBytes === src.sizeBytes &&
@@ -110,7 +109,9 @@ export const useSession = create<SessionState>((set, get) => ({
       );
       if (dup) continue;
       const params = defaultParamsFor(defaultFormat);
-      params.bitrateKbps = params.bitrateKbps ?? defaultBitrateKbps;
+      if (getFormat(defaultFormat)?.bitrateOptionsKbps?.includes(defaultBitrateKbps)) {
+        params.bitrateKbps = defaultBitrateKbps;
+      }
       params.filenameTemplate = filenameTemplate;
       newFiles.push({ source: src, probing: true, params });
     }
@@ -122,7 +123,6 @@ export const useSession = create<SessionState>((set, get) => ({
 
     // 并发探测（真实信息）
     void newFiles.forEach((f) => void probeOne(f.source.id));
-    void outputDirName;
   },
 
   removeFile: (fileId) => {
@@ -146,7 +146,15 @@ export const useSession = create<SessionState>((set, get) => ({
   setFileParams: (fileId, patch) => {
     set((s) => ({
       files: s.files.map((f) =>
-        f.source.id === fileId ? { ...f, params: { ...f.params, ...patch } } : f,
+        f.source.id === fileId
+          ? {
+              ...f,
+              params: {
+                ...(patch.format ? defaultParamsFor(patch.format, f.params) : f.params),
+                ...patch,
+              },
+            }
+          : f,
       ),
     }));
   },
@@ -166,17 +174,19 @@ export const useSession = create<SessionState>((set, get) => ({
 
   applyParamsToAll: (patch) => {
     set((s) => ({
-      files: s.files.map((f) => ({ ...f, params: { ...f.params, ...patch } })),
+      files: s.files.map((f) => ({
+        ...f,
+        params: {
+          ...(patch.format ? defaultParamsFor(patch.format, f.params) : f.params),
+          ...patch,
+        },
+      })),
     }));
   },
 
   ensureEngine: async () => {
     const state = get().engineState;
     if (state === 'ready' && engineInitialized()) return;
-    if (state === 'initializing') {
-      await initEngine().catch(() => undefined);
-      return;
-    }
     set({ engineState: 'initializing', engineError: undefined });
     try {
       await initEngine();
@@ -191,6 +201,12 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   startTask: (taskId) => {
+    const task = get().tasks.find((t) => t.id === taskId);
+    if (!task || !['queued', 'paused', 'failed', 'cancelled'].includes(task.status)) return;
+    if (task.status === 'failed' || task.status === 'cancelled') {
+      get().retryTask(taskId);
+      return;
+    }
     set((s) => ({
       tasks: s.tasks.map((t) => {
         if (t.id !== taskId) return t;
@@ -205,8 +221,19 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   startAll: () => {
+    // 新导入的文件尚无任务；一次创建快照，再启动已有等待/暂停任务。
     set((s) => ({
-      tasks: s.tasks.map((t) => {
+      tasks: [
+        ...s.tasks,
+        ...s.files
+          .filter(
+            (f) =>
+              !s.tasks.some(
+                (t) => t.fileId === f.source.id && !['failed', 'cancelled'].includes(t.status),
+              ),
+          )
+          .map(taskForFile),
+      ].map((t) => {
         if (t.status === 'queued' || t.status === 'paused') {
           const status =
             t.status === 'paused' ? transition({ status: t.status }, 'queued') : t.status;
@@ -222,15 +249,14 @@ export const useSession = create<SessionState>((set, get) => ({
     const st = get();
     const file = st.files.find((f) => f.source.id === fileId);
     if (!file) return;
+    if (st.tasks.some((t) => t.fileId === fileId && ['preparing', 'running'].includes(t.status)))
+      return;
     // 已有未完成任务 → 直接启动；否则创建
     const task = st.tasks.find(
       (t) => t.fileId === fileId && ['queued', 'paused'].includes(t.status),
     );
     if (!task) {
-      const fresh = createTask<'convert', EncodeParams>('convert', file.source.name, {
-        ...file.params,
-      });
-      const rec: SessionTask = { ...fresh, fileId, armed: true, params: { ...file.params } };
+      const rec = taskForFile(file);
       set((s) => ({ tasks: [...s.tasks, rec] }));
     } else {
       get().startTask(task.id);
@@ -256,6 +282,7 @@ export const useSession = create<SessionState>((set, get) => ({
       set((s) => ({
         tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, intent: 'pause', armed: false } : t)),
       }));
+      if (task.status === 'preparing') return;
       void getEngine()
         .cancel(taskId)
         .catch(() => undefined);
@@ -302,6 +329,7 @@ export const useSession = create<SessionState>((set, get) => ({
       set((s) => ({
         tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, intent: 'cancel', armed: false } : t)),
       }));
+      if (task.status === 'preparing') return;
       void getEngine()
         .cancel(taskId)
         .catch(() => undefined);
@@ -333,11 +361,6 @@ export const useSession = create<SessionState>((set, get) => ({
     if (!task) return;
     if (task.status === 'running' || task.status === 'preparing') {
       get().cancelTask(taskId);
-      // 异步终止后再移除
-      setTimeout(() => {
-        set((s) => ({ tasks: s.tasks.filter((t) => t.id !== taskId) }));
-      }, 400);
-      return;
     }
     set((s) => ({ tasks: s.tasks.filter((t) => t.id !== taskId) }));
   },
@@ -354,6 +377,16 @@ export const useSession = create<SessionState>((set, get) => ({
     }));
   },
 }));
+
+function taskForFile(file: SessionFile): SessionTask {
+  const params = { ...file.params, normalize: { ...file.params.normalize } };
+  return {
+    ...createTask<'convert', EncodeParams>('convert', file.source.name, params),
+    targetFormat: params.format,
+    fileId: file.source.id,
+    armed: true,
+  };
+}
 
 /** 探测单个文件（真实信息来源：引擎） */
 async function probeOne(fileId: string): Promise<void> {
@@ -380,9 +413,11 @@ async function probeOne(fileId: string): Promise<void> {
         bitDepth: probe.bitDepth as number | undefined,
       });
       useSession.getState().setFileParams(fileId, {
-        sampleRate: derived.sampleRate,
-        channels: derived.channels,
-        bitDepth: derived.bitDepth,
+        ...(cur.params.sampleRate === file.params.sampleRate
+          ? { sampleRate: derived.sampleRate }
+          : {}),
+        ...(cur.params.channels === file.params.channels ? { channels: derived.channels } : {}),
+        ...(cur.params.bitDepth === file.params.bitDepth ? { bitDepth: derived.bitDepth } : {}),
       });
     }
     for (const w of estimate.warnings) toast.warning('资源预检', w);
@@ -416,22 +451,44 @@ function schedulePump(): void {
 async function pump(): Promise<void> {
   const state = useSession.getState();
   const concurrency = Math.max(1, Math.min(4, useSettings.getState().concurrency));
-  let running = state.tasks.filter(
-    (t) => t.status === 'running' || t.status === 'preparing',
-  ).length;
+  let running = executing.size;
 
   for (const task of state.tasks) {
     if (running >= concurrency) break;
     if (task.status === 'queued' && task.armed && !executing.has(task.id)) {
       running += 1;
-      void execute(task.id);
-      // execute 是异步的，这里用 executing 集合防重
       executing.add(task.id);
+      void execute(task.id);
     }
   }
 }
 
 async function execute(taskId: string): Promise<void> {
+  // 所有准备、校验和执行路径都必须归还并发槽位。
+  try {
+    await executeTask(taskId);
+  } catch (e) {
+    const current = useSession.getState().tasks.find((t) => t.id === taskId);
+    if (current && ['preparing', 'running'].includes(current.status)) {
+      if (current.intent) {
+        patchTask(taskId, (t) => ({
+          status: transition(
+            { status: t.status },
+            current.intent === 'pause' ? 'paused' : 'cancelled',
+          ),
+          armed: false,
+          finishedAt: current.intent === 'pause' ? undefined : Date.now(),
+          intent: undefined,
+        }));
+      } else markFailed(taskId, e);
+    }
+  } finally {
+    executing.delete(taskId);
+    schedulePump();
+  }
+}
+
+async function executeTask(taskId: string): Promise<void> {
   const state = useSession.getState();
   const task = state.tasks.find((t) => t.id === taskId);
   if (!task || task.status !== 'queued') {
@@ -447,14 +504,14 @@ async function execute(taskId: string): Promise<void> {
   // preparing
   patchTask(taskId, (t) => ({ status: transition({ status: t.status }, 'preparing') }));
 
-  try {
-    await useSession.getState().ensureEngine();
-  } catch (e) {
-    markFailed(taskId, e);
-    return;
-  }
+  await useSession.getState().ensureEngine();
 
-  const params = { ...file.params };
+  // 初始化期间可能已暂停、取消或移除；不能再提交到引擎。
+  const prepared = useSession.getState().tasks.find((t) => t.id === taskId);
+  if (!prepared) return;
+  if (prepared.intent) throw makeEngineError('E_CANCELLED');
+
+  const params = { ...task.params, normalize: { ...task.params.normalize } };
   const errors = validateParams(params);
   if (errors.length) {
     markFailed(
@@ -470,7 +527,9 @@ async function execute(taskId: string): Promise<void> {
     params,
     sourceFormat: file.probe?.format ?? undefined,
     targetFormat: params.format,
-    attempt: t.attempt + (t.startedAt ? 0 : 1),
+    attempt: t.attempt + 1,
+    error: undefined,
+    finishedAt: undefined,
     progress: { ...t.progress, totalMs: file.probe?.durationMs ?? 0, ratio: 0, processedMs: 0 },
   }));
 
@@ -500,7 +559,7 @@ async function execute(taskId: string): Promise<void> {
       onProgress: (p) => {
         const t = useSession.getState().tasks.find((x) => x.id === taskId);
         if (!t) return;
-        const next = { ...t };
+        const next = { ...t, progress: { ...t.progress } };
         applyProgress(next, p);
         useSession.setState((s) => ({
           tasks: s.tasks.map((x) => (x.id === taskId ? { ...x, progress: next.progress } : x)),
@@ -570,9 +629,6 @@ async function execute(taskId: string): Promise<void> {
     } else {
       markFailed(taskId, e, params, file, outputFileName, performance.now() - t0);
     }
-  } finally {
-    executing.delete(taskId);
-    schedulePump();
   }
 }
 

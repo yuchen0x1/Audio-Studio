@@ -40,7 +40,7 @@ vi.mock('../stores/history', () => ({
   useHistory: { getState: () => ({ add: vi.fn(() => Promise.resolve()) }) },
 }));
 
-import { useSession, type SessionTask } from '../stores/session';
+import { useSession, type SessionTask, type SessionFile } from '../stores/session';
 import { useSettings } from '../stores/settings';
 
 function source(id: string, name = `${id}.mp3`, sizeBytes = 1000): AudioSource {
@@ -275,5 +275,166 @@ describe('队列泵与执行', () => {
       expect(t.status).toBe('failed');
       expect(t.error?.code).toBe('E_CORRUPT_FILE');
     });
+  });
+});
+
+function readyFile(id: string, params = defaultParamsFor('mp3')): SessionFile {
+  return { source: source(id), probing: false, params };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+describe('队列可靠性回归', () => {
+  it('开始全部为新文件创建任务，重复点击不重复转换', async () => {
+    useSession.setState({ files: [readyFile('a'), readyFile('b')] });
+    useSession.getState().startAll();
+    useSession.getState().startAll();
+    await vi.waitFor(() =>
+      expect(useSession.getState().tasks.every((t) => t.status === 'completed')).toBe(true),
+    );
+    expect(useSession.getState().tasks).toHaveLength(2);
+    expect(mockRun).toHaveBeenCalledTimes(2);
+    useSession.getState().startAll();
+    await flush();
+    expect(mockRun).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['pause', 'cancel', 'remove'] as const)('准备期间 %s 不得进入引擎', async (action) => {
+    const init = deferred<object>();
+    mockInitEngine.mockReturnValue(init.promise);
+    useSession.setState({ files: [readyFile('a')] });
+    await useSession.getState().startForFile('a');
+    await vi.waitFor(() => expect(useSession.getState().tasks[0].status).toBe('preparing'));
+    const id = useSession.getState().tasks[0].id;
+    if (action === 'pause') useSession.getState().pauseTask(id);
+    else if (action === 'cancel') useSession.getState().cancelTask(id);
+    else useSession.getState().removeTask(id);
+    init.resolve({});
+    await flush();
+    expect(mockRun).not.toHaveBeenCalled();
+    expect(mockCancel).not.toHaveBeenCalled();
+    if (action === 'remove') expect(useSession.getState().tasks).toHaveLength(0);
+    else
+      expect(useSession.getState().tasks[0].status).toBe(
+        action === 'pause' ? 'paused' : 'cancelled',
+      );
+  });
+
+  it.each(['invalid', 'missing'] as const)(
+    '首任务 %s 失败后归还槽位并继续下一项',
+    async (failure) => {
+      useSettings.getState().update({ concurrency: 1 });
+      const bad = makeTask('a');
+      if (failure === 'invalid') bad.params.sampleRate = -1;
+      useSession.setState({
+        files: [...(failure === 'invalid' ? [readyFile('a')] : []), readyFile('b')],
+        tasks: [bad, makeTask('b')],
+      });
+      useSession.getState().startAll();
+      await vi.waitFor(() => expect(useSession.getState().tasks[1].status).toBe('completed'));
+      expect(useSession.getState().tasks[0].error?.code).toBe(
+        failure === 'invalid' ? 'E_INVALID_PARAM' : 'E_SOURCE_MISSING',
+      );
+      expect(mockRun).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('队列使用入队时参数快照，包括嵌套归一化配置', async () => {
+    const init = deferred<object>();
+    mockInitEngine.mockReturnValue(init.promise);
+    const file = readyFile('a');
+    useSession.setState({ files: [file] });
+    await useSession.getState().startForFile('a');
+    file.params.normalize.target = -23;
+    useSession.getState().setFileParams('a', { format: 'flac', bitrateKbps: undefined });
+    init.resolve({});
+    await vi.waitFor(() => expect(mockRun).toHaveBeenCalledTimes(1));
+    expect(mockRun.mock.calls[0][0].params).toMatchObject({
+      format: 'mp3',
+      normalize: { target: -14 },
+    });
+  });
+
+  it('运行中重复启动单文件或终态任务不会二次执行', async () => {
+    const running = deferred<JobResult>();
+    mockRun.mockReturnValueOnce(running.promise);
+    useSession.setState({ files: [readyFile('a')] });
+    await useSession.getState().startForFile('a');
+    await vi.waitFor(() => expect(mockRun).toHaveBeenCalledTimes(1));
+    await useSession.getState().startForFile('a');
+    expect(useSession.getState().tasks).toHaveLength(1);
+    running.resolve({ outputPath: 'out', fileName: 'out.mp3', sizeBytes: 1, elapsedMs: 1 });
+    await vi.waitFor(() => expect(useSession.getState().tasks[0].status).toBe('completed'));
+    useSession.getState().startTask(useSession.getState().tasks[0].id);
+    await flush();
+    expect(mockRun).toHaveBeenCalledTimes(1);
+  });
+
+  it('移除执行中任务后，新任务仍遵守并发上限', async () => {
+    useSettings.getState().update({ concurrency: 1 });
+    const running = deferred<JobResult>();
+    mockRun.mockReturnValueOnce(running.promise);
+    useSession.setState({ files: [readyFile('a')] });
+    await useSession.getState().startForFile('a');
+    await vi.waitFor(() => expect(mockRun).toHaveBeenCalledTimes(1));
+    useSession.getState().clearFiles();
+    useSession.setState({ files: [readyFile('b')] });
+    useSession.getState().startAll();
+    await flush();
+    expect(mockRun).toHaveBeenCalledTimes(1);
+    running.reject(makeEngineError('E_CANCELLED'));
+    await vi.waitFor(() => expect(mockRun).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(useSession.getState().tasks[0].status).toBe('completed'));
+  });
+
+  it('并发等待初始化的调用者都会收到失败，并允许重试', async () => {
+    const init = deferred<object>();
+    mockInitEngine.mockReturnValue(init.promise);
+    const results = Promise.allSettled([
+      useSession.getState().ensureEngine(),
+      useSession.getState().ensureEngine(),
+    ]);
+    init.reject(makeEngineError('E_ENGINE_INIT'));
+    expect((await results).map((r) => r.status)).toEqual(['rejected', 'rejected']);
+    mockInitEngine.mockResolvedValue({});
+    await useSession.getState().ensureEngine();
+    expect(useSession.getState().engineState).toBe('ready');
+  });
+
+  it('同次导入去重，并采用合法的默认码率设置', async () => {
+    useSettings.getState().update({ defaultBitrateKbps: 320 });
+    await useSession.getState().addFiles([source('a', 'song.mp3'), source('b', 'song.mp3')]);
+    await flush();
+    expect(useSession.getState().files).toHaveLength(1);
+    expect(useSession.getState().files[0].params.bitrateKbps).toBe(320);
+  });
+
+  it('迟到的探测不覆盖用户已选择的采样率与声道', async () => {
+    const probe = deferred<ProbeResult>();
+    mockProbe.mockReturnValueOnce(probe.promise);
+    await useSession.getState().addFiles([source('a')]);
+    await flush();
+    useSession.getState().setFileParams('a', { sampleRate: 48000, channels: 1 });
+    probe.resolve({
+      format: 'mp3',
+      codec: 'mp3',
+      container: 'mp3',
+      fileSizeBytes: 1000,
+      tags: {},
+      streamSummary: [],
+      warnings: [],
+      sampleRate: 44100,
+      channels: 2,
+    });
+    await vi.waitFor(() => expect(useSession.getState().files[0].probing).toBe(false));
+    expect(useSession.getState().files[0].params).toMatchObject({ sampleRate: 48000, channels: 1 });
   });
 });

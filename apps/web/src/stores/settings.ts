@@ -1,4 +1,4 @@
-/** 用户设置（localStorage 持久化），三平台语义一致 */
+/** 用户设置（localStorage 持久化），Web 与 Windows 两端语义一致 */
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { FormatId } from '@audio-studio/shared';

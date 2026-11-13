@@ -161,71 +161,26 @@ jobs:
             apps/desktop/src-tauri/target/release/bundle/nsis/*.exe.sig
             apps/desktop/src-tauri/target/release/bundle/msi/*.msi.sig
 
-  # ---------- Android ----------
-  android:
-    name: 打包 Android
-    needs: version
-    runs-on: ubuntu-latest
-    env:
-      RELEASE_VERSION: ${{ needs.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ env.RELEASE_TAG }}
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      # 直接用 runner 预装的 SDK：android-actions/setup-android 在
-      # cmdline-tools 版本校验 + 许可证步骤上会以 exit 1 失败
-      - name: 安装 SDK 组件
-        run: |
-          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort | tail -1)"
-          fi
-          echo "使用 sdkmanager: $SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
-          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" "build-tools;36.0.0"
-          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-
-      - uses: gradle/actions/setup-gradle@v4
-
-      - name: 单元测试
-        working-directory: apps/android
-        run: ./gradlew testDebugUnitTest --no-daemon
-
-      # 未配置发布签名，先提供 debug 签名包（可直接安装）
-      - name: 构建 APK
-        working-directory: apps/android
-        run: ./gradlew assembleDebug --no-daemon
-
-      - name: 重命名
-        run: |
-          cd apps/android/app/build/outputs/apk/debug
-          cp app-debug.apk "$GITHUB_WORKSPACE/AudioStudio-${RELEASE_TAG}-debug.apk"
-
-      - uses: actions/upload-artifact@v5
-        with:
-          name: release-android
-          if-no-files-found: error
-          path: AudioStudio-*-debug.apk
-
   # ---------- 发布 ----------
   publish:
     name: 创建 Release
-    needs: [version, web, desktop, android]
+    needs: [version, web, desktop]
     runs-on: ubuntu-latest
     env:
       RELEASE_VERSION: ${{ needs.version.outputs.version }}
+      RELEASE_NOTES_PATH: ${{ runner.temp }}/release-notes.md
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 读取当前版本更新日志
+        shell: bash
+        run: node scripts/release-notes.mjs "$RELEASE_TAG" "$RELEASE_NOTES_PATH"
 
       - uses: actions/download-artifact@v5
         with:
@@ -284,11 +239,11 @@ jobs:
               raise SystemExit('No signed Windows updater artifact found')
           payload = {
               'version': version,
-              'notes': f'Audio Studio {tag}',
+              'notes': pathlib.Path(os.environ['RELEASE_NOTES_PATH']).read_text(encoding='utf-8').strip(),
               'pub_date': release_date,
               'platforms': platforms,
           }
-          (root / 'latest.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\\n')
+          (root / 'latest.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n')
           PY
           cat dist/latest.json
 
@@ -344,13 +299,13 @@ jobs:
               'assets': assets,
           }
           (root / 'release-manifest.json').write_text(
-              json.dumps(manifest, ensure_ascii=False, indent=2) + '\\n'
+              json.dumps(manifest, ensure_ascii=False, indent=2) + '\n'
           )
 
           checksum_lines = []
           for path in sorted(p for p in root.rglob('*') if p.is_file() and p.name != 'SHA256SUMS.txt'):
               checksum_lines.append(f'{digest(path)}  {path.relative_to(root).as_posix()}')
-          (root / 'SHA256SUMS.txt').write_text('\\n'.join(checksum_lines) + '\\n')
+          (root / 'SHA256SUMS.txt').write_text('\n'.join(checksum_lines) + '\n')
           PY
           test -s dist/release-manifest.json
           test -s dist/SHA256SUMS.txt
@@ -364,20 +319,10 @@ jobs:
           name: Audio Studio ${{ env.RELEASE_TAG }}
           draft: false
           prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
-          body: |
-            ## 下载
-
-            | 平台 | 文件 | 说明 |
-            |---|---|---|
-            | Windows | `*_x64-setup.exe` / `*.msi` | 安装包，需要系统已安装 FFmpeg（或在应用目录放置 `ffmpeg.exe`） |
-            | Android | `AudioStudio-*-debug.apk` | debug 签名，可直接安装；`minSdk 29` |
-            | Web | `AudioStudio-*-web.zip` | 静态站点，解压后由任意静态服务器托管（含 FFmpeg.wasm，约 32MB） |
-
-            > 桌面版与 Android 版调用系统 FFmpeg；Web 版内置 FFmpeg.wasm，无需额外依赖。
+          body_path: ${{ runner.temp }}/release-notes.md
           # artifact 下载后保留了 msi/ 、nsis/ 子目录，必须显式列出
           files: |
             dist/*.zip
-            dist/*.apk
             dist/msi/*.msi
             dist/nsis/*.exe
             dist/nsis/*.exe.sig

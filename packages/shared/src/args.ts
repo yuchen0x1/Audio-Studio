@@ -14,6 +14,8 @@ import { assertSafeArg } from './validation';
 export interface BuildContext {
   /** 源时长（毫秒）；fadeOut / trim 必需 */
   durationMs?: number;
+  /** 按输入顺序排列的片段时长，用于逐段淡出。 */
+  itemDurationsMs?: (number | undefined)[];
   /** 归一化测量结果（两遍法），未提供时若启用归一化会抛错 */
   measure?: MeasureResult;
   /** 合并时解析出的目标采样率/声道（params 为 0=keep 时由引擎用探测值填充） */
@@ -243,10 +245,8 @@ export function buildMergeArgs(job: MergeJob, ctx: BuildContext = {}): string[] 
     args.push('-i', p);
   }
   const gapSec = Math.max(0, num(job.gapMs)) / 1000;
-  const gapInputs: number[] = [];
   if (gapSec > 0 && job.items.length > 1) {
     for (let i = 1; i < job.items.length; i++) {
-      gapInputs.push(args.length / 2); // 不精确但仅用于调试；真实索引 = 之后 push 的顺序
       args.push('-f', 'lavfi', '-t', gapSec.toFixed(3), '-i', `anullsrc=r=${rate}:cl=${layout}`);
     }
   }
@@ -255,7 +255,10 @@ export function buildMergeArgs(job: MergeJob, ctx: BuildContext = {}): string[] 
   const parts: string[] = [];
   const labels: string[] = [];
   job.items.forEach((item, i) => {
-    const chain: string[] = [`aformat=sample_rates=${rate}:channel_layouts=${layout}`];
+    const chain: string[] = [
+      `aformat=sample_rates=${rate}:channel_layouts=${layout}`,
+      'asetpts=PTS-STARTPTS',
+    ];
     const g = num(item.gainDb ?? 0);
     if (g !== 0) chain.push(`volume=${g.toFixed(2)}dB`);
     if (num(item.fadeInMs ?? 0) > 0) {
@@ -263,15 +266,17 @@ export function buildMergeArgs(job: MergeJob, ctx: BuildContext = {}): string[] 
     }
     const fi = num(item.fadeOutMs ?? 0);
     if (fi > 0) {
-      // 该片段自身时长未知时，用淡出时长前的边界：引擎在 ctx 提供片段时长数组
-      const segDur = ctx.durationMs && job.items.length === 1 ? ctx.durationMs : undefined;
-      const st = segDur ? Math.max(0, (segDur - fi) / 1000) : 0;
+      const segDur =
+        ctx.itemDurationsMs?.[i] ?? (job.items.length === 1 ? ctx.durationMs : undefined);
+      if (segDur === undefined || !Number.isFinite(segDur) || segDur <= 0)
+        throw new Error('逐段淡出需要片段时长信息');
+      const st = Math.max(0, (segDur - fi) / 1000);
       chain.push(`afade=t=out:st=${st.toFixed(3)}:d=${(fi / 1000).toFixed(3)}`);
     }
     const label = `a${i}`;
     parts.push(`[${i}:a]${chain.join(',')}[${label}]`);
+    if (i > 0 && gapSec > 0) labels.push(`[g${i - 1}]`);
     labels.push(`[${label}]`);
-    void item;
   });
 
   // 间隙静音片段
@@ -279,8 +284,9 @@ export function buildMergeArgs(job: MergeJob, ctx: BuildContext = {}): string[] 
     job.items.slice(1).forEach((_, i) => {
       const idx = job.items.length + i;
       const label = `g${i}`;
-      parts.push(`[${idx}:a]aformat=sample_rates=${rate}:channel_layouts=${layout}[${label}]`);
-      labels.push(`[${label}]`);
+      parts.push(
+        `[${idx}:a]aformat=sample_rates=${rate}:channel_layouts=${layout},asetpts=PTS-STARTPTS[${label}]`,
+      );
     });
   }
 

@@ -1,5 +1,6 @@
 export * from './formats';
 export * from './params';
+export * from './presets';
 export * from './task';
 export * from './errors';
 export * from './engine';

@@ -1,12 +1,13 @@
 /** 格式转换页：文件列表 + 单文件参数 + 任务执行与进度 */
 import { useMemo, useState } from 'react';
 import type { FormatId } from '@audio-studio/shared';
-import { defaultParamsFor } from '@audio-studio/shared';
+import { defaultParamsFor, paramsForPreset } from '@audio-studio/shared';
 import { useSession, type SessionFile, type SessionTask } from '../stores/session';
 import { useI18n, useT } from '../i18n';
 import { Dropzone } from '../components/Dropzone';
 import { FormatSelect } from '../components/FormatSelect';
 import { ParamPanel } from '../components/ParamPanel';
+import { PresetPicker } from '../components/PresetPicker';
 import { TaskRow } from '../components/TaskRow';
 import { Modal } from '../components/Modal';
 import { fmtDuration, fmtSize, fmtBitrate, fmtSampleRate, fmtChannels } from '../utils/format';
@@ -107,7 +108,10 @@ export function ConvertPage() {
             <button
               className="btn btn-sm"
               onClick={() => void startAll()}
-              disabled={!pendingFiles.length}
+              disabled={
+                !pendingFiles.length &&
+                !convertTasks.some((t) => ['queued', 'paused'].includes(t.status))
+              }
             >
               <IconPlay size={13} /> {zh ? '开始全部' : 'Start all'}
             </button>
@@ -358,6 +362,16 @@ function FileDetail({ file }: { file: SessionFile }) {
 
       {/* 参数 */}
       <div className="card-flat">
+        <p className="field-hint">
+          {zh
+            ? '修改用于下一次入队；现有任务保持入队时的参数。'
+            : 'Edits apply when next queued. Existing jobs keep their queued settings.'}
+        </p>
+        <PresetPicker
+          onSelect={(id) =>
+            setFileParams(file.source.id, paramsForPreset(id, file.params, file.probe))
+          }
+        />
         <FormatSelect
           value={file.params.format}
           onChange={(id) => {

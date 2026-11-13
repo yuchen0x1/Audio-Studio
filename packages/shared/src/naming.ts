@@ -1,4 +1,4 @@
-/** 输出文件名模板系统（三平台共享） */
+/** 输出文件名模板系统（Web 与 Windows 两端共享） */
 
 import { FormatDef } from './formats';
 import { sanitizeFileName } from './validation';

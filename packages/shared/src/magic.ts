@@ -1,5 +1,5 @@
 /**
- * 基于文件头（magic bytes）的真实格式检测 —— 三平台共用同一规则。
+ * 基于文件头（magic bytes）的真实格式检测 —— Web 与 Windows 两端共用同一规则。
  * 扩展名与实际内容不一致时，以内容为准并在 ProbeResult 中给出 warning。
  */
 import { FormatId } from './formats';

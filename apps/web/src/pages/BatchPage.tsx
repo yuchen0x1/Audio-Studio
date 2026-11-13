@@ -1,12 +1,18 @@
 /** 批量转换页：批量参数 + 任务队列 + 并发控制 */
 import { useMemo, useState } from 'react';
-import type { FormatId } from '@audio-studio/shared';
+import {
+  defaultParamsFor,
+  paramsForPreset,
+  type EncodeParams,
+  type FormatId,
+} from '@audio-studio/shared';
 import { useSession } from '../stores/session';
 import { useSettings } from '../stores/settings';
 import { useI18n } from '../i18n';
 import { Dropzone } from '../components/Dropzone';
 import { FormatSelect } from '../components/FormatSelect';
 import { ParamPanel } from '../components/ParamPanel';
+import { PresetPicker } from '../components/PresetPicker';
 import { TaskRow } from '../components/TaskRow';
 import { toast } from '../stores/toast';
 import { setEngineConcurrency } from '../engine';
@@ -33,16 +39,33 @@ export function BatchPage() {
   const concurrency = useSettings((s) => s.concurrency);
   const updateSettings = useSettings((s) => s.update);
 
-  const [batchFormat, setBatchFormat] = useState<FormatId>(files[0]?.params.format ?? 'mp3');
+  const [batchParams, setBatchParams] = useState<EncodeParams>(() => ({
+    ...defaultParamsFor(files[0]?.params.format ?? useSettings.getState().defaultFormat),
+    filenameTemplate: useSettings.getState().filenameTemplate,
+  }));
+  const batchFormat = batchParams.format;
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const setBatchFormat = (format: FormatId) =>
+    setBatchParams((previous) => ({
+      ...defaultParamsFor(format),
+      filenameTemplate: previous.filenameTemplate,
+    }));
+  const updateBatchParams = (patch: Partial<EncodeParams>) => {
+    setBatchParams((previous) => ({ ...previous, ...patch }));
+  };
 
   const queue = useMemo(
     () =>
       tasks.filter(
         (t) =>
-          ['queued', 'preparing', 'running', 'paused', 'failed', 'cancelled'].includes(t.status) ||
-          t.status === 'completed',
+          (statusFilter === 'all' ||
+            (statusFilter === 'active'
+              ? ['preparing', 'running'].includes(t.status)
+              : t.status === statusFilter)) &&
+          t.sourceLabel.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
       ),
-    [tasks],
+    [tasks, statusFilter, query],
   );
   const counts = useMemo(
     () => ({
@@ -147,22 +170,35 @@ export function BatchPage() {
           <IconBatch size={16} />{' '}
           {zh ? '批量参数（应用到全部文件）' : 'Batch parameters (apply to all)'}
         </div>
+        <PresetPicker
+          onSelect={(id) => {
+            const next = paramsForPreset(id, batchParams);
+            setBatchParams(next);
+            for (const file of files) {
+              useSession
+                .getState()
+                .setFileParams(file.source.id, paramsForPreset(id, file.params, file.probe));
+            }
+            toast.success(zh ? '预设已应用到全部文件' : 'Preset applied to all files');
+          }}
+        />
         <div
           className="row"
           style={{ gap: 'var(--sp-4)', alignItems: 'flex-end', flexWrap: 'wrap' }}
         >
-          <div style={{ width: 260 }}>
+          <div style={{ width: 260, maxWidth: '100%' }}>
             <FormatSelect value={batchFormat} onChange={setBatchFormat} id="batch-fmt" />
           </div>
           <button
             className="btn"
             onClick={() => {
               applyFormatToAll(batchFormat);
-              toast.success(zh ? '目标格式已应用到全部' : 'Format applied to all');
+              applyParamsToAll(batchParams);
+              toast.success(zh ? '参数已应用到全部文件' : 'Parameters applied to all files');
             }}
             disabled={!files.length}
           >
-            {zh ? '应用格式到全部' : 'Apply format to all'}
+            {zh ? '应用参数到全部' : 'Apply parameters to all'}
           </button>
         </div>
         <hr className="divider" />
@@ -172,24 +208,13 @@ export function BatchPage() {
               {zh ? '同时应用的参数（可选）' : 'Extra params to apply (optional)'}
             </span>
             <span className="field-hint">
-              {zh ? '仅覆盖你修改过的项' : 'Only overrides you change here'}
+              {zh
+                ? '调整后点击“应用参数到全部”。入队后参数固定，新文件请重新应用。'
+                : 'Click “Apply parameters to all” after editing. Queued settings stay fixed; reapply for new files.'}
             </span>
           </div>
         </div>
-        <ParamPanel
-          params={{
-            format: batchFormat,
-            sampleRate: 0,
-            channels: 0,
-            gainDb: 0,
-            normalize: { enabled: false, mode: 'lufs', target: -14 },
-            fadeInMs: 0,
-            fadeOutMs: 0,
-            filenameTemplate: useSettings.getState().filenameTemplate,
-          }}
-          onChange={(patch) => applyParamsToAll(patch)}
-          showNaming={false}
-        />
+        <ParamPanel params={batchParams} onChange={updateBatchParams} showNaming={false} />
         <div className="mt-3 row" style={{ gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
           <label className="field-label" htmlFor="batch-concurrency" style={{ margin: 0 }}>
             {zh ? '并行任务数' : 'Parallel tasks'}
@@ -254,14 +279,65 @@ export function BatchPage() {
         <h2 className="mb-3" style={{ fontSize: 'var(--fs-lg)' }}>
           {zh ? '任务队列' : 'Task queue'}
         </h2>
+        <div className="queue-filters">
+          <label className="field grow">
+            <span className="field-label">{zh ? '搜索文件名' : 'Search filenames'}</span>
+            <input
+              className="input"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={zh ? '输入文件名…' : 'Type a filename…'}
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">{zh ? '任务状态' : 'Task status'}</span>
+            <select
+              className="select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              {[
+                ['all', zh ? '全部' : 'All'],
+                ['queued', zh ? '等待' : 'Queued'],
+                ['active', zh ? '执行中' : 'Running'],
+                ['paused', zh ? '已暂停' : 'Paused'],
+                ['completed', zh ? '已完成' : 'Completed'],
+                ['failed', zh ? '失败' : 'Failed'],
+                ['cancelled', zh ? '已取消' : 'Cancelled'],
+              ].map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="xs muted" role="status">
+            {queue.length} / {tasks.length}
+          </span>
+        </div>
         {queue.length === 0 ? (
           <div className="empty">
             <div className="empty-icon">
               <IconBatch size={26} />
             </div>
-            <div className="empty-title">{zh ? '队列为空' : 'Queue is empty'}</div>
+            <div className="empty-title">
+              {tasks.length
+                ? zh
+                  ? '没有匹配的任务'
+                  : 'No matching tasks'
+                : zh
+                  ? '队列为空'
+                  : 'Queue is empty'}
+            </div>
             <div className="empty-desc">
-              {zh ? '添加文件后点击"全部入队"' : 'Add files, then hit "Queue all"'}
+              {tasks.length
+                ? zh
+                  ? '更换搜索词或状态筛选'
+                  : 'Change the search or status filter'
+                : zh
+                  ? '添加文件后点击"全部入队"'
+                  : 'Add files, then hit "Queue all"'}
             </div>
           </div>
         ) : (

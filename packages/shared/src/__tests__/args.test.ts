@@ -174,12 +174,18 @@ describe('FFmpeg 参数向量构建', () => {
       outputFileName: 'merged.mp3',
       outputDir: 'C:/out',
     };
-    const args = buildMergeArgs(job, { resolvedSampleRate: 44100, resolvedChannels: 2 });
+    const args = buildMergeArgs(job, {
+      resolvedSampleRate: 44100,
+      resolvedChannels: 2,
+      itemDurationsMs: [2000, 3000],
+    });
     expect(args).toContain('-filter_complex');
     const fc = args[args.indexOf('-filter_complex') + 1];
     expect(fc).toContain('concat=n=3:v=0:a=1');
     expect(fc).toContain('volume=-3.00dB');
     expect(fc).toContain('[g0]');
+    expect(fc).toContain('[a0][g0][a1]concat');
+    expect(fc).toContain('afade=t=out:st=2.700:d=0.300');
     // 间隙静音作为 lavfi 输入注入
     expect(args.join(' ')).toContain('anullsrc=r=44100:cl=stereo');
     expect(fc).toContain('aformat=sample_rates=44100:channel_layouts=stereo');
@@ -201,6 +207,20 @@ describe('FFmpeg 参数向量构建', () => {
     expect(args.filter((a) => a === '-i')).toHaveLength(2);
     const fc = args[args.indexOf('-filter_complex') + 1];
     expect(fc).toContain('concat=n=2:v=0:a=1');
+  });
+
+  it('未知片段时长时拒绝逐段淡出，避免错误地从开头淡出', () => {
+    const job: MergeJob = {
+      kind: 'merge',
+      taskId: 'fade',
+      items: [{ source: src, fadeOutMs: 300 }, { source: src }],
+      gapMs: 0,
+      params: defaultParamsFor('wav'),
+      outputFileName: 'merge.wav',
+      outputDir: 'out',
+    };
+    expect(() => buildMergeArgs(job)).toThrow(/片段时长/);
+    expect(() => buildMergeArgs(job, { itemDurationsMs: [NaN, 1000] })).toThrow(/片段时长/);
   });
 
   it('测量作业输出到 null muxer', () => {

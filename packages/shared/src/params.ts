@@ -1,6 +1,6 @@
 /**
- * 统一编码参数模型：三平台共享同一套参数语义，
- * 引擎层负责把参数翻译成各自后端的调用（FFmpeg 参数向量 / MediaCodec 配置）。
+ * 统一编码参数模型：Web 与 Windows 两端共享同一套参数语义，
+ * 引擎层负责把参数翻译成 FFmpeg 参数向量，供浏览器与原生后端执行。
  */
 import { BitDepth, FormatDef, FormatId, FORMATS, getFormat } from './formats';
 

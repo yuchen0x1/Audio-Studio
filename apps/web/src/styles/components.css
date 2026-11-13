@@ -974,3 +974,56 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+/* 用途预设与队列工具：沿用工作台 token，窄屏自动换行。 */
+.preset-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+.preset-intro,
+.preset-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--sp-1);
+}
+.preset-intro {
+  flex: 1 1 150px;
+}
+.preset-option {
+  flex: 1 1 170px;
+  height: auto;
+  white-space: normal;
+  text-align: left;
+}
+.queue-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.queue-filters .field {
+  flex: 1 1 170px;
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .task-row-main {
+    flex-wrap: wrap;
+  }
+  .task-row-name {
+    flex-basis: calc(100% - 90px);
+  }
+  .task-row-progress {
+    flex: 1 1 120px !important;
+    width: auto !important;
+  }
+  .task-row-actions {
+    margin-left: auto;
+  }
+}

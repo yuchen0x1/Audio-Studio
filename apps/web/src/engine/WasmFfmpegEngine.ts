@@ -35,6 +35,7 @@ import {
   checkSizeLimit,
   estimateWasmPeakBytes,
   FORMATS,
+  closestNumber,
   ConvertJob,
   TrimJob,
   MergeJob,
@@ -59,6 +60,7 @@ interface Waiter {
 
 type BuildCtx = {
   durationMs?: number;
+  itemDurationsMs?: (number | undefined)[];
   measure?: MeasureResult;
   resolvedSampleRate?: number;
   resolvedChannels?: number;
@@ -467,11 +469,18 @@ export class WasmFfmpegEngine implements AudioEngine {
         const sum = probes.reduce((a, p) => a + (p.durationMs ?? 0), 0);
         totalMs = sum + Math.max(0, job.items.length - 1) * Math.max(0, job.gapMs);
         const targetFormat = FORMATS[job.params.format];
-        const resolvedSampleRate = job.params.sampleRate || probes[0].sampleRate || 44100;
+        const resolvedSampleRate =
+          job.params.sampleRate ||
+          closestNumber(targetFormat.sampleRates, probes[0].sampleRate || 44100);
         const maxChannels = Math.max(...probes.map((p) => p.channels ?? 2));
         const resolvedChannels =
-          job.params.channels || Math.min(maxChannels, Math.max(...targetFormat.channels));
-        ctx = { durationMs: totalMs, resolvedSampleRate, resolvedChannels };
+          job.params.channels || closestNumber(targetFormat.channels, maxChannels);
+        ctx = {
+          durationMs: totalMs,
+          itemDurationsMs: probes.map((p) => p.durationMs),
+          resolvedSampleRate,
+          resolvedChannels,
+        };
         if (job.params.normalize?.enabled) {
           ctx = { ...ctx, ...(await this.measure(job, inst, cancelPromise, callbacks)) };
         }

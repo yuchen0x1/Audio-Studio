@@ -15,6 +15,7 @@ import type {
   ConvertJob,
   TrimJob,
   MergeJob,
+  BuildContext,
 } from '@audio-studio/shared';
 import {
   makeEngineError,
@@ -23,6 +24,8 @@ import {
   buildMergeArgs,
   expandJob,
   classifyEngineOutput,
+  closestNumber,
+  FORMATS,
 } from '@audio-studio/shared';
 
 async function tauri() {
@@ -123,11 +126,12 @@ export class NativeEngine implements AudioEngine {
       this.cancelled.delete(job.taskId);
       throw makeEngineError('E_CANCELLED');
     }
-    const args = buildArgsForJob(job);
+    const ctx = await this.contextFor(job);
+    const args = buildArgsForJob(job, ctx);
     const outputPath = job.outputDir
       ? `${job.outputDir}/${job.outputFileName}`
       : job.outputFileName;
-    const totalMs = await this.totalDurationOf(job);
+    const totalMs = ctx.durationMs ?? 0;
     const t0 = performance.now();
 
     const unsubs: Array<() => void> = [];
@@ -139,43 +143,60 @@ export class NativeEngine implements AudioEngine {
           settled = true;
           fn();
         };
+        const trackSubscription = (un: () => void) => {
+          if (settled) un();
+          else unsubs.push(un);
+        };
 
-        void listen<{ taskId: string; timeUs: number }>('task://progress', (e) => {
-          if (e.payload.taskId !== job.taskId) return;
-          const processedMs = Math.max(0, Math.round(e.payload.timeUs / 1000));
-          const ratio = totalMs > 0 ? Math.min(1, processedMs / totalMs) : 0;
-          callbacks?.onProgress?.({ ratio, processedMs, totalMs });
-        }).then((un) => unsubs.push(un));
-
-        void listen<{ taskId: string; code: string; message: string }>('task://error', (e) => {
-          if (e.payload.taskId !== job.taskId) return;
-          finish(() => {
-            const code = /^E_[A-Z_]+$/.test(e.payload.code)
-              ? (e.payload.code as never)
-              : classifyEngineOutput(e.payload.message);
-            reject(makeEngineError(code, e.payload.message));
-          });
-        }).then((un) => unsubs.push(un));
-
-        void listen<{ taskId: string; outputPath?: string; sizeBytes: number; elapsedMs: number }>(
-          'task://done',
+        const progressSubscription = listen<{ taskId: string; timeUs: number }>(
+          'task://progress',
           (e) => {
             if (e.payload.taskId !== job.taskId) return;
-            // 冲突重命名时 Rust 侧返回真实落盘路径（如 "mix (1).mp3"），以它为准
-            const realPath = e.payload.outputPath || outputPath;
-            const realName = realPath.split(/[\\/]/).pop() || job.outputFileName;
-            finish(() =>
-              resolve({
-                outputPath: realPath,
-                fileName: realName,
-                sizeBytes: e.payload.sizeBytes,
-                elapsedMs: e.payload.elapsedMs || Math.round(performance.now() - t0),
-              }),
-            );
+            const processedMs = Math.max(0, Math.round(e.payload.timeUs / 1000));
+            const ratio = totalMs > 0 ? Math.min(1, processedMs / totalMs) : 0;
+            callbacks?.onProgress?.({ ratio, processedMs, totalMs });
           },
-        ).then((un) => unsubs.push(un));
+        ).then(trackSubscription);
 
-        invoke('start_task', { taskId: job.taskId, args, outputPath })
+        const errorSubscription = listen<{ taskId: string; code: string; message: string }>(
+          'task://error',
+          (e) => {
+            if (e.payload.taskId !== job.taskId) return;
+            finish(() => {
+              const code = /^E_[A-Z_]+$/.test(e.payload.code)
+                ? (e.payload.code as never)
+                : classifyEngineOutput(e.payload.message);
+              reject(makeEngineError(code, e.payload.message));
+            });
+          },
+        ).then(trackSubscription);
+
+        const doneSubscription = listen<{
+          taskId: string;
+          outputPath?: string;
+          sizeBytes: number;
+          elapsedMs: number;
+        }>('task://done', (e) => {
+          if (e.payload.taskId !== job.taskId) return;
+          // 冲突重命名时 Rust 侧返回真实落盘路径（如 "mix (1).mp3"），以它为准
+          const realPath = e.payload.outputPath || outputPath;
+          const realName = realPath.split(/[\\/]/).pop() || job.outputFileName;
+          finish(() =>
+            resolve({
+              outputPath: realPath,
+              fileName: realName,
+              sizeBytes: e.payload.sizeBytes,
+              elapsedMs: e.payload.elapsedMs || Math.round(performance.now() - t0),
+            }),
+          );
+        }).then(trackSubscription);
+
+        // 先完成订阅，再启动进程，避免短音频完成事件先于 listener 注册。
+        Promise.all([progressSubscription, errorSubscription, doneSubscription])
+          .then(() => {
+            if (this.cancelled.has(job.taskId)) throw makeEngineError('E_CANCELLED');
+            return invoke('start_task', { taskId: job.taskId, args, outputPath });
+          })
           .then(() => {
             // 覆盖“取消发生在 start_task 注册之前”的窗口期
             if (this.cancelled.has(job.taskId)) {
@@ -185,6 +206,10 @@ export class NativeEngine implements AudioEngine {
           })
           .catch((err) =>
             finish(() => {
+              if (this.cancelled.has(job.taskId)) {
+                reject(makeEngineError('E_CANCELLED'));
+                return;
+              }
               const msg = err instanceof Error ? err.message : String(err);
               reject(makeEngineError(classifyEngineOutput(msg), msg));
             }),
@@ -198,7 +223,7 @@ export class NativeEngine implements AudioEngine {
             id: `out_${job.taskId}`,
             name: job.outputFileName,
             sizeBytes: result.sizeBytes,
-            path: outputPath,
+            path: result.outputPath,
           });
         } catch {
           /* 校验失败不阻断交付 */
@@ -206,6 +231,7 @@ export class NativeEngine implements AudioEngine {
       }
       return result;
     } finally {
+      this.cancelled.delete(job.taskId);
       for (const u of unsubs) {
         try {
           u();
@@ -216,21 +242,32 @@ export class NativeEngine implements AudioEngine {
     }
   }
 
-  private async totalDurationOf(job: AudioJob): Promise<number> {
+  private async contextFor(job: AudioJob): Promise<BuildContext> {
     try {
-      if (job.kind === 'trim') return Math.max(0, job.endMs - job.startMs);
+      if (job.kind === 'trim') return { durationMs: Math.max(0, job.endMs - job.startMs) };
       if (job.kind === 'convert') {
         const p = await this.probe(job.source);
-        return p.durationMs ?? 0;
+        return { durationMs: p.durationMs };
       }
-      let sum = 0;
+      const probes: ProbeResult[] = [];
       for (const item of job.items) {
-        const p = await this.probe(item.source);
-        sum += p.durationMs ?? 0;
+        probes.push(await this.probe(item.source));
       }
-      return sum + Math.max(0, job.items.length - 1) * Math.max(0, job.gapMs);
+      const format = FORMATS[job.params.format];
+      return {
+        durationMs:
+          probes.reduce((sum, p) => sum + (p.durationMs ?? 0), 0) +
+          Math.max(0, job.items.length - 1) * Math.max(0, job.gapMs),
+        itemDurationsMs: probes.map((p) => p.durationMs),
+        resolvedSampleRate:
+          job.params.sampleRate ||
+          closestNumber(format.sampleRates, probes[0]?.sampleRate ?? 44100),
+        resolvedChannels:
+          job.params.channels ||
+          closestNumber(format.channels, Math.max(...probes.map((p) => p.channels ?? 2))),
+      };
     } catch {
-      return 0;
+      return {};
     }
   }
 
@@ -268,19 +305,18 @@ export class NativeEngine implements AudioEngine {
   }
 }
 
-function buildArgsForJob(job: AudioJob): string[] {
+function buildArgsForJob(job: AudioJob, ctx: BuildContext): string[] {
   if (job.kind === 'convert') {
     const c = job as ConvertJob;
-    return buildConvertArgs(c, {});
+    return buildConvertArgs(c, ctx);
   }
   if (job.kind === 'trim') {
     const t = job as TrimJob;
-    return buildTrimArgs(t, { durationMs: Math.max(0, t.endMs - t.startMs) });
+    return buildTrimArgs(t, ctx);
   }
   const m = job as MergeJob;
   return buildMergeArgs(m, {
-    resolvedSampleRate: m.params.sampleRate || undefined,
-    resolvedChannels: m.params.channels || undefined,
+    ...ctx,
   });
 }
 

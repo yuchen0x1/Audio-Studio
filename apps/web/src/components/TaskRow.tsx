@@ -77,7 +77,7 @@ export function TaskRow({ task, showTarget = true }: TaskRowProps) {
         </span>
 
         {/* 名称 */}
-        <div className="grow" style={{ minWidth: 0 }}>
+        <div className="grow task-row-name" style={{ minWidth: 0 }}>
           <div
             className="truncate bold"
             style={{ fontSize: 'var(--fs-sm)' }}
@@ -115,7 +115,7 @@ export function TaskRow({ task, showTarget = true }: TaskRowProps) {
         </div>
 
         {/* 进度 */}
-        <div style={{ width: 140, flex: 'none' }}>
+        <div className="task-row-progress" style={{ width: 140, flex: 'none' }}>
           {active ? (
             <>
               <div
@@ -148,7 +148,7 @@ export function TaskRow({ task, showTarget = true }: TaskRowProps) {
         </div>
 
         {/* 操作 */}
-        <div className="row" style={{ gap: 4, flex: 'none' }}>
+        <div className="row task-row-actions" style={{ gap: 4, flex: 'none' }}>
           {(task.status === 'queued' || task.status === 'preparing') && (
             <button
               className="btn btn-ghost btn-icon btn-sm"

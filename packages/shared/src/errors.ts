@@ -1,4 +1,4 @@
-/** 统一错误码与错误模型：三平台共享同一套错误语义 */
+/** 统一错误码与错误模型：Web 与 Windows 两端共享同一套错误语义 */
 
 export type EngineErrorCode =
   | 'E_ENGINE_INIT' // 引擎初始化失败
