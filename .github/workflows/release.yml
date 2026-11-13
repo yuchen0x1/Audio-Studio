@@ -176,6 +176,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
 
       - name: 读取当前版本更新日志
         shell: bash
