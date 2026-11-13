@@ -168,7 +168,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_VERSION: ${{ needs.version.outputs.version }}
-      RELEASE_NOTES_PATH: ${{ runner.temp }}/release-notes.md
     steps:
       - uses: actions/checkout@v5
         with:
@@ -180,7 +179,9 @@ jobs:
 
       - name: 读取当前版本更新日志
         shell: bash
-        run: node scripts/release-notes.mjs "$RELEASE_TAG" "$RELEASE_NOTES_PATH"
+        run: |
+          node scripts/release-notes.mjs "$RELEASE_TAG" "$RUNNER_TEMP/release-notes.md"
+          echo "RELEASE_NOTES_PATH=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_ENV"
 
       - uses: actions/download-artifact@v5
         with:
@@ -189,6 +190,26 @@ jobs:
 
       - name: 列出待发布文件
         run: ls -lh dist
+
+      - name: 统一 GitHub 附件文件名
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib, re
+          root = pathlib.Path('dist')
+          # GitHub 会规范化特殊字符；先统一名称，再生成 URL 和校验清单。
+          for path in sorted(root.rglob('*')):
+              if not path.is_file():
+                  continue
+              name = re.sub(r'[^A-Za-z0-9._-]', '.', path.name).strip('.')
+              if not name:
+                  raise SystemExit(f'Invalid release asset name: {path}')
+              target = path.with_name(name)
+              if target != path:
+                  if target.exists():
+                      raise SystemExit(f'Asset normalization collision: {path} -> {target}')
+                  path.rename(target)
+          PY
 
       - name: 校验发布资产命名与签名配对
         shell: bash
