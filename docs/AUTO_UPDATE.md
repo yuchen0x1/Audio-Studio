@@ -2,6 +2,8 @@
 
 本文说明当前 main 为 Windows 电脑版与网页版实现的更新方案。两端使用 GitHub Releases 发现版本，安装或资源切换由平台能力决定。历史 v0.1.0 的发行附件不包含当前签名更新清单，不将方案实现视为该旧版本的安装升级已经验证。
 
+当前稳定版为 [v0.2.0](https://github.com/yuchen0x1/Audio-Studio/releases/tag/v0.2.0)，已发布并核对更新签名、版本绑定、`latest.json` 和 SHA-256 校验文件。安装器具有 Tauri 更新签名，尚未配置 Windows Authenticode 发布者证书；旧客户端发现、安装、重启的完整更新流程仍需实机验收。
+
 ## 方案总览
 
 | 平台 | 版本发现 | 安装/切换方式 | 完整性保护 |
