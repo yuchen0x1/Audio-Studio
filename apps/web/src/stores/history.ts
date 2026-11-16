@@ -24,6 +24,9 @@ export interface HistoryRecord {
 
 const DB_NAME = 'audio-studio';
 const STORE = 'history';
+export const HISTORY_EXPORT_VERSION = 1;
+const MAX_HISTORY_RECORDS = 5000;
+const MAX_HISTORY_JSON_BYTES = 2 * 1024 * 1024;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -55,6 +58,7 @@ interface HistoryState {
   add: (rec: HistoryRecord) => Promise<void>;
   remove: (id: string) => Promise<void>;
   clear: () => Promise<void>;
+  importRecords: (records: HistoryRecord[]) => Promise<number>;
   setQuery: (q: string) => void;
   setStatusFilter: (f: HistoryStatusFilter) => void;
   setKindFilter: (f: HistoryKindFilter) => void;
@@ -114,6 +118,31 @@ export const useHistory = create<HistoryState>((set, get) => ({
     set({ records: [] });
   },
 
+  importRecords: async (records) => {
+    const normalized = records
+      .slice(0, MAX_HISTORY_RECORDS)
+      .sort((a, b) => b.createdAt - a.createdAt);
+    try {
+      const d = await db();
+      const tx = d.transaction(STORE, 'readwrite');
+      for (const record of normalized) await tx.store.put(record);
+      await tx.done;
+      set((s) => {
+        const byId = new Map(s.records.map((r) => [r.id, r]));
+        for (const record of normalized) byId.set(record.id, record);
+        return {
+          records: [...byId.values()]
+            .sort((a, b) => b.createdAt - a.createdAt)
+            .slice(0, MAX_HISTORY_RECORDS),
+        };
+      });
+      return normalized.length;
+    } catch (e) {
+      console.error('[history] import failed', e);
+      throw e;
+    }
+  },
+
   setQuery: (query) => set({ query }),
   setStatusFilter: (statusFilter) => set({ statusFilter }),
   setKindFilter: (kindFilter) => set({ kindFilter }),
@@ -136,4 +165,58 @@ export function filterHistory(
     }
     return true;
   });
+}
+
+/** 导出带版本号的 JSON，便于未来迁移而不是把内部 IndexedDB 结构暴露给用户。 */
+export function serializeHistory(records: HistoryRecord[]): string {
+  return JSON.stringify(
+    {
+      version: HISTORY_EXPORT_VERSION,
+      exportedAt: Date.now(),
+      records: records.slice(0, MAX_HISTORY_RECORDS),
+    },
+    null,
+    2,
+  );
+}
+
+function isHistoryRecord(value: unknown): value is HistoryRecord {
+  if (!value || typeof value !== 'object') return false;
+  const r = value as Partial<HistoryRecord>;
+  return (
+    typeof r.id === 'string' &&
+    r.id.length > 0 &&
+    typeof r.sourceLabel === 'string' &&
+    (r.kind === 'convert' || r.kind === 'trim' || r.kind === 'merge') &&
+    (r.status === 'completed' || r.status === 'failed' || r.status === 'cancelled') &&
+    !!r.params &&
+    typeof r.params === 'object' &&
+    Number.isFinite(r.createdAt) &&
+    Number.isFinite(r.finishedAt) &&
+    Number.isFinite(r.elapsedMs)
+  );
+}
+
+/** 解析并校验导入文件；拒绝过大的或部分损坏的文件，避免静默污染历史。 */
+export function parseHistoryJson(text: string): HistoryRecord[] {
+  if (new TextEncoder().encode(text).byteLength > MAX_HISTORY_JSON_BYTES) {
+    throw new Error('历史文件过大');
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    throw new Error('历史文件不是有效 JSON');
+  }
+  const records = Array.isArray(payload)
+    ? payload
+    : payload &&
+        typeof payload === 'object' &&
+        Array.isArray((payload as { records?: unknown }).records)
+      ? (payload as { records: unknown[] }).records
+      : null;
+  if (!records) throw new Error('历史文件缺少 records 数组');
+  if (records.length > MAX_HISTORY_RECORDS) throw new Error('历史记录数量超过上限');
+  if (!records.every(isHistoryRecord)) throw new Error('历史文件包含无效记录');
+  return (records as HistoryRecord[]).sort((a, b) => b.createdAt - a.createdAt);
 }

@@ -27,6 +27,7 @@ import {
   closestNumber,
   FORMATS,
 } from '@audio-studio/shared';
+import { useSettings } from '../stores/settings';
 
 async function tauri() {
   const core = await import('@tauri-apps/api/core');
@@ -195,7 +196,14 @@ export class NativeEngine implements AudioEngine {
         Promise.all([progressSubscription, errorSubscription, doneSubscription])
           .then(() => {
             if (this.cancelled.has(job.taskId)) throw makeEngineError('E_CANCELLED');
-            return invoke('start_task', { taskId: job.taskId, args, outputPath });
+            const settings = useSettings.getState();
+            return invoke('start_task', {
+              taskId: job.taskId,
+              args,
+              outputPath,
+              notify: settings.notifyOnDone,
+              concurrency: settings.concurrency,
+            });
           })
           .then(() => {
             // 覆盖“取消发生在 start_task 注册之前”的窗口期
@@ -287,7 +295,12 @@ export class NativeEngine implements AudioEngine {
     if (source.sizeBytes > 4 * 1024 * 1024 * 1024) {
       warnings.push('文件超过 4GB，请确认磁盘空间充足');
     }
-    return { inputBytes: source.sizeBytes, estimatedPeakBytes: source.sizeBytes * 2, warnings };
+    return {
+      inputBytes: source.sizeBytes,
+      estimatedPeakBytes: source.sizeBytes * 2,
+      warnings,
+      verdict: warnings.length ? 'warn' : 'ok',
+    };
   }
 
   async dispose(): Promise<void> {

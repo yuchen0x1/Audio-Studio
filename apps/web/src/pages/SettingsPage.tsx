@@ -147,8 +147,11 @@ export function SettingsPage() {
   const onReset = () => {
     if (!window.confirm(S.resetConfirm)) return;
     useSettings.getState().reset();
+    // 语言状态由独立的 i18n store 持有；仅重置设置 store 会留下“设置显示中文、
+    // 其余界面仍为英文”的半重置状态。
+    setLang('zh');
     applyTheme('dark');
-    toast.success(S.resetDone);
+    toast.success(ZH.resetDone);
   };
 
   const permLabel =

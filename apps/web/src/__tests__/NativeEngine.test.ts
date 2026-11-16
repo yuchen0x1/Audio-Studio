@@ -4,6 +4,7 @@ const { invoke, listen } = vi.hoisted(() => ({ invoke: vi.fn(), listen: vi.fn() 
 vi.mock('@tauri-apps/api/core', () => ({ invoke }));
 vi.mock('@tauri-apps/api/event', () => ({ listen }));
 import { NativeEngine } from '../engine/NativeEngine';
+import { useSettings } from '../stores/settings';
 
 type Handler = (event: { payload: Record<string, unknown> }) => void;
 const handlers = new Map<string, Handler>();
@@ -20,6 +21,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   handlers.clear();
   unsubs.length = 0;
+  useSettings.getState().reset();
   listen.mockImplementation(async (event, handler) => {
     handlers.set(event, handler);
     const un = vi.fn();
@@ -78,6 +80,13 @@ describe('原生引擎事件与合并上下文', () => {
     await new NativeEngine().run({ ...job, params });
     const args = invoke.mock.calls.find(([cmd]) => cmd === 'start_task')![1].args;
     expect(args[args.indexOf('-af') + 1]).toContain('afade=t=out:st=2.500:d=0.500');
+  });
+
+  it('将桌面通知与并发设置传给原生任务', async () => {
+    useSettings.getState().update({ notifyOnDone: false, concurrency: 4 });
+    await new NativeEngine().run(job);
+    const call = invoke.mock.calls.find(([cmd]) => cmd === 'start_task');
+    expect(call?.[1]).toMatchObject({ notify: false, concurrency: 4 });
   });
 
   it('合并将每段时长用于淡出，静音位于两个音频之间', async () => {

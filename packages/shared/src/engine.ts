@@ -149,6 +149,8 @@ export interface ResourceEstimate {
   inputBytes: number;
   estimatedPeakBytes: number;
   warnings: string[];
+  /** 资源预检结论；reject 表示当前引擎不应开始作业。 */
+  verdict?: 'ok' | 'warn' | 'reject';
 }
 
 export interface AudioEngine {

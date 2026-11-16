@@ -166,6 +166,7 @@ pub async fn start_task(
     args: Vec<String>,
     output_path: String,
     notify: Option<bool>,
+    concurrency: Option<u32>,
 ) -> Result<OkResult, String> {
     if task_id.trim().is_empty() {
         return Err(safety::err("E_INVALID_PARAM", "taskId 不能为空"));
@@ -199,7 +200,10 @@ pub async fn start_task(
     }
 
     let notifications_ok = st.notifications_enabled && notify.unwrap_or(true);
-    let max_concurrent = st.max_concurrent_tasks.clamp(1, 4);
+    // 前端设置是当前会话的真实来源；旧客户端未传该字段时回退到持久化设置。
+    let max_concurrent = concurrency
+        .unwrap_or(st.max_concurrent_tasks)
+        .clamp(1, 4);
 
     logging::info(
         "task",

@@ -511,6 +511,19 @@ async function executeTask(taskId: string): Promise<void> {
   if (!prepared) return;
   if (prepared.intent) throw makeEngineError('E_CANCELLED');
 
+  // 预检必须在写入浏览器虚拟文件系统前执行。否则大文件会先复制进内存，
+  // 触发浏览器 OOM 后只能整页崩溃，用户也无法重试或切换到桌面版。
+  const estimate: ResourceEstimate = file.estimate ?? getEngine().estimate(file.source);
+  if (estimate.verdict === 'reject') {
+    markFailed(
+      taskId,
+      makeEngineError('E_OUT_OF_MEMORY', estimate.warnings.join('；'), {
+        message: '文件超过浏览器引擎处理上限，请改用桌面版或减小文件后重试',
+      }),
+    );
+    return;
+  }
+
   const params = { ...task.params, normalize: { ...task.params.normalize } };
   const errors = validateParams(params);
   if (errors.length) {

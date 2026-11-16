@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { filterHistory, type HistoryRecord } from '../stores/history';
+import {
+  filterHistory,
+  parseHistoryJson,
+  serializeHistory,
+  type HistoryRecord,
+} from '../stores/history';
 import { defaultParamsFor } from '@audio-studio/shared';
 
 function rec(over: Partial<HistoryRecord> = {}): HistoryRecord {
@@ -97,5 +102,17 @@ describe('filterHistory', () => {
 
   it('空记录返回空数组', () => {
     expect(filterHistory([], 'x', 'all', 'all')).toEqual([]);
+  });
+
+  it('导出并导入时保留版本化记录', () => {
+    const parsed = parseHistoryJson(serializeHistory(RECORDS));
+    expect(parsed.map((x) => x.id)).toEqual(['1', '2', '3', '4']);
+    expect(parsed[0].params.format).toBe('wav');
+  });
+
+  it('拒绝损坏记录而不是静默导入', () => {
+    expect(() => parseHistoryJson(JSON.stringify({ records: [{ id: 'bad' }] }))).toThrow(
+      '历史文件包含无效记录',
+    );
   });
 });

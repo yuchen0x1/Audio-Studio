@@ -2,7 +2,7 @@
  * 转换历史页：搜索/状态/类型筛选 + 表格操作（重新执行/打开位置/删除/错误展开）。
  * Web 端历史记录不保留产物数据，因此不显示下载按钮（不放无效按钮）。
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FORMATS } from '@audio-studio/shared';
 import { useI18n, useT } from '../i18n';
 import {
@@ -11,6 +11,8 @@ import {
   type HistoryRecord,
   type HistoryKindFilter,
   type HistoryStatusFilter,
+  parseHistoryJson,
+  serializeHistory,
 } from '../stores/history';
 import { reexecuteFromHistory } from '../stores/session';
 import { toast } from '../stores/toast';
@@ -42,6 +44,7 @@ export function HistoryPage() {
   const load = useHistory((s) => s.load);
 
   const [expanded, setExpanded] = useState<string | null>(null);
+  const importInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void load();
@@ -68,6 +71,32 @@ export function HistoryPage() {
     void revealOutput(path).catch((e) => toast.error(S.openFailed, String(e)));
   };
 
+  const onExport = () => {
+    const blob = new Blob([serializeHistory(records)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audio-studio-history-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    toast.success(S.exported);
+  };
+
+  const onImport = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const recordsToImport = parseHistoryJson(await file.text());
+      const count = await useHistory.getState().importRecords(recordsToImport);
+      toast.success(`${S.imported} (${count})`);
+    } catch (e) {
+      toast.error(S.importFailed, e instanceof Error ? e.message : String(e));
+    } finally {
+      if (importInput.current) importInput.current.value = '';
+    }
+  };
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -75,9 +104,24 @@ export function HistoryPage() {
           <h1>{t('history.title')}</h1>
           <p className="page-desc">{t('history.desc')}</p>
         </div>
-        <button className="btn btn-danger" onClick={onClear} disabled={!records.length}>
-          {t('history.clearAll')}
-        </button>
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <button className="btn" onClick={onExport} disabled={!records.length}>
+            {S.exportHistory}
+          </button>
+          <button className="btn" onClick={() => importInput.current?.click()}>
+            {S.importHistory}
+          </button>
+          <button className="btn btn-danger" onClick={onClear} disabled={!records.length}>
+            {t('history.clearAll')}
+          </button>
+          <input
+            ref={importInput}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={(e) => void onImport(e.target.files?.[0])}
+          />
+        </div>
       </div>
 
       {/* 筛选栏 */}
@@ -333,6 +377,11 @@ const ZH = {
   hideError: '收起',
   noMatch: '没有匹配的记录',
   noMatchDesc: '试试调整搜索词或筛选条件',
+  exportHistory: '导出历史',
+  importHistory: '导入历史',
+  exported: '历史已导出',
+  imported: '历史已导入',
+  importFailed: '导入失败',
 };
 
 const EN: typeof ZH = {
@@ -351,6 +400,11 @@ const EN: typeof ZH = {
   hideError: 'Hide',
   noMatch: 'No matching records',
   noMatchDesc: 'Try adjusting the search or filters',
+  exportHistory: 'Export history',
+  importHistory: 'Import history',
+  exported: 'History exported',
+  imported: 'History imported',
+  importFailed: 'Import failed',
 };
 
 export default HistoryPage;

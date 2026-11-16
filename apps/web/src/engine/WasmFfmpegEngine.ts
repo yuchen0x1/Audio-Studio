@@ -725,7 +725,7 @@ export class WasmFfmpegEngine implements AudioEngine {
     if (peak > 1.5 * 1024 * 1024 * 1024) {
       warnings.push('预计内存需求超过 1.5GB，可能触发浏览器内存限制');
     }
-    return { inputBytes: source.sizeBytes, estimatedPeakBytes: peak, warnings };
+    return { inputBytes: source.sizeBytes, estimatedPeakBytes: peak, warnings, verdict };
   }
 
   async dispose(): Promise<void> {

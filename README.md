@@ -99,7 +99,7 @@ npx tauri build                                  # 打包 MSI / NSIS 安装包
 | 范围 | 用例数 | 命令 |
 |---|---|---|
 | 共享核心 | 101（含 20 项需系统 FFmpeg/FFprobe 的条件集成测试） | `pnpm --filter @audio-studio/shared test` |
-| Web | 131 | `pnpm --filter @audio-studio/web test` |
+| Web | 136 | `pnpm --filter @audio-studio/web test` |
 | Rust | 45 | `cd apps/desktop/src-tauri && cargo test` |
 | 发布日志提取 | 5 | `pnpm test:release-notes` |
 
@@ -145,13 +145,13 @@ py -3.14 apps/web/scripts/e2e-audio.py
 
 ## 最新更新
 
-### v0.2.0 — 2026-11-13
+### v0.2.1 — 2026-11-16
 
-- Windows / Web 新增音乐分享、语音小文件、FLAC 存档预设和队列搜索、状态筛选。
-- 修复批量启动、取消与重试、任务设置漂移，以及合并静音和淡出位置。
-- 改善手机浏览器的任务列表布局，后续仅维护电脑版与网页版。
-
-[下载 v0.2.0](https://github.com/yuchen0x1/Audio-Studio/releases/tag/v0.2.0)，完整分平台记录见 [更新日志](docs/releases/release-notes.md)。
+- 浏览器大文件在进入 FFmpeg.wasm 前执行硬限制预检，避免内存峰值导致整页崩溃。
+- Windows 原生任务同步应用通知和并发设置；设置重置同步恢复中文语言状态。
+- 增加历史记录 JSON 导入/导出、输入校验、全局错误恢复界面，并收紧 Tauri WebView CSP。
+- 本轮审计、15 个开源项目对标和 40 项升级路线见 [PROJECT_AUDIT.md](PROJECT_AUDIT.md)、[COMPETITOR_ANALYSIS.md](COMPETITOR_ANALYSIS.md)、[UPGRADE_ROADMAP.md](UPGRADE_ROADMAP.md) 与 [UPGRADE_REPORT.md](UPGRADE_REPORT.md)。
+- [下载 v0.2.1](https://github.com/yuchen0x1/Audio-Studio/releases/tag/v0.2.1)，完整分平台记录见 [更新日志](docs/releases/release-notes.md)。
 
 ---
 

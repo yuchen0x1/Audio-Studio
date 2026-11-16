@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTask, defaultParamsFor, makeEngineError } from '@audio-studio/shared';
-import type { AudioSource, EncodeParams, JobResult, ProbeResult } from '@audio-studio/shared';
+import type {
+  AudioSource,
+  EncodeParams,
+  JobResult,
+  ProbeResult,
+  ResourceEstimate,
+} from '@audio-studio/shared';
 
 const mockRun = vi.fn();
 const mockProbe = vi.fn();
@@ -275,6 +281,20 @@ describe('队列泵与执行', () => {
       expect(t.status).toBe('failed');
       expect(t.error?.code).toBe('E_CORRUPT_FILE');
     });
+  });
+
+  it('浏览器硬资源限制在写入引擎前失败', async () => {
+    const estimate: ResourceEstimate = {
+      inputBytes: 900 * 1024 * 1024,
+      estimatedPeakBytes: 4 * 1024 * 1024 * 1024,
+      warnings: ['文件超过浏览器内存上限'],
+      verdict: 'reject',
+    };
+    useSession.setState({ files: [{ ...readyFile('large'), estimate }], tasks: [] });
+    useSession.getState().startAll();
+    await vi.waitFor(() => expect(useSession.getState().tasks[0].status).toBe('failed'));
+    expect(useSession.getState().tasks[0].error?.code).toBe('E_OUT_OF_MEMORY');
+    expect(mockRun).not.toHaveBeenCalled();
   });
 });
 
