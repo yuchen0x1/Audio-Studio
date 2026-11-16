@@ -2,7 +2,7 @@
 
 报告日期：2026-11-16（Asia/Shanghai）
 基线：`main` / `0.2.0`，工作区初始干净。
-交付状态：**本地代码升级已完成一批并通过可运行检查；桌面原生 FFmpeg、签名安装包和远程发布仍明确标记为未验证。**
+交付状态：**本地代码升级已完成一批并通过可运行检查；v0.2.1 已完成 GitHub Actions 构建、签名资产上传与公开 Release 验收。桌面原生转码和旧版客户端安装升级仍需实机验证。**
 
 ## A. 竞品研究
 
@@ -69,6 +69,8 @@
 - `pnpm build:web`：构建成功。
 - `pnpm --filter @audio-studio/desktop check`：cargo check 通过。
 - `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`：45 passed。
+- GitHub Actions CI run `43873002265`：类型检查、Lint、格式、覆盖率、Web/Rust 测试、FFmpeg 准备和桌面打包全部通过。
+- GitHub Actions Release run `43872716991`：版本解析、Web/Windows 构建、签名安装包、资产上传和 Release 创建全部通过。
 
 ### 实际运行
 
@@ -78,7 +80,8 @@
 ### 未完成/限制
 
 - 当前 Windows 环境未发现 `ffmpeg` 和 `ffprobe`，因此不能把 Rust 的真实进程转码、长任务性能和输出质量写成已验证。
-- 本轮未创建/上传 GitHub Release，没有执行签名 MSI/NSIS 的干净机安装、升级、回滚。
+- 已发布 [v0.2.1 GitHub Release](https://github.com/yuchen0x1/Audio-Studio/releases/tag/v0.2.1)：Windows x64 EXE/MSI 及 `.sig`、Web ZIP、`latest.json`、`release-manifest.json`、`SHA256SUMS.txt` 共 8 个附件均已上传；`latest.json` 签名与 EXE `.sig` 一致，公开资产摘要与 SHA-256 清单逐项匹配。
+- 尚未在干净 Windows 机器执行签名 MSI/NSIS 的安装、旧版升级、回滚和重启后验收。
 - Vite 仍报告 engine/platform 动态导入与静态导入重复的 warning；已列为 EV-023。
 - 未生成新的覆盖率百分比；不沿用旧报告数字。
 
@@ -100,4 +103,4 @@
 
 ## 交付判定
 
-本轮满足“完成真实审计、联网研究 15 个项目、形成 30+ 个有证据升级点、实施并验证一批 P0/P1 改进、保存未完成项原因”的条件；不宣称已达到生产级桌面发布质量，所有外部环境阻塞均已明确记录。
+本轮满足“完成真实审计、联网研究 15 个项目、形成 30+ 个有证据升级点、实施并验证一批 P0/P1 改进、保存未完成项原因”的条件；v0.2.1 的公开发布链路已验证，但不宣称已完成生产级桌面安装升级验收，所有剩余外部环境限制均已明确记录。
