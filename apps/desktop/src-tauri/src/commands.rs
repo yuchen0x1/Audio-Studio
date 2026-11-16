@@ -201,9 +201,7 @@ pub async fn start_task(
 
     let notifications_ok = st.notifications_enabled && notify.unwrap_or(true);
     // 前端设置是当前会话的真实来源；旧客户端未传该字段时回退到持久化设置。
-    let max_concurrent = concurrency
-        .unwrap_or(st.max_concurrent_tasks)
-        .clamp(1, 4);
+    let max_concurrent = concurrency.unwrap_or(st.max_concurrent_tasks).clamp(1, 4);
 
     logging::info(
         "task",
