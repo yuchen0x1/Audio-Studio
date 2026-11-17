@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useI18n } from '../i18n';
 import { useSettings } from '../stores/settings';
 import { useToast } from '../stores/toast';
 import {
@@ -38,6 +39,7 @@ const releaseResponse = {
 beforeEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
+  useI18n.getState().setLang('zh');
   useSettings.getState().reset();
   useToast.setState({ items: [] });
   resetUpdateStateForTests();

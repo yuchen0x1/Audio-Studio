@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useI18n } from '../i18n';
 
 const mocks = vi.hoisted(() => {
   let releaseListener: ((release: LatestRelease) => void) | null = null;
@@ -56,6 +57,7 @@ import { UpdatePrompt } from '../components/UpdatePrompt';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useI18n.getState().setLang('zh');
   mocks.getAvailableRelease.mockReturnValue(null);
   mocks.refreshWebUpdate.mockResolvedValue(undefined);
 });
