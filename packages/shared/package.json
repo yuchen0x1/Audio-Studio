@@ -1,6 +1,6 @@
 {
   "name": "@audio-studio/shared",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "description": "Audio Studio shared core: format registry, param model, task state machine, engine contract",
