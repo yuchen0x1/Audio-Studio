@@ -7,6 +7,45 @@ import { persist } from 'zustand/middleware';
 
 export type Lang = 'zh' | 'en';
 
+/** Resolve a saved choice first, then browser/system locales, then the legacy zh default. */
+export function resolveLang(
+  saved?: unknown,
+  locales: readonly string[] = [],
+  fallback: Lang = 'zh',
+): Lang {
+  if (saved === 'zh' || saved === 'zh-CN' || saved === 'zh-TW' || saved === 'zh-HK') return 'zh';
+  if (saved === 'en' || saved === 'en-US' || saved === 'en-GB') return 'en';
+  for (const value of locales) {
+    const locale = String(value || '').toLowerCase();
+    if (locale.startsWith('zh')) return 'zh';
+    if (locale.startsWith('en')) return 'en';
+  }
+  return fallback;
+}
+
+function readSavedLang(): unknown {
+  try {
+    const storage = globalThis.localStorage;
+    for (const key of ['as-settings', 'as-lang']) {
+      const raw = storage?.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as { state?: { lang?: unknown }; lang?: unknown };
+      const value = parsed.state?.lang ?? parsed.lang;
+      if (value !== undefined) return value;
+    }
+  } catch {
+    // Storage may be unavailable during SSR or private browsing; use detection below.
+  }
+  return undefined;
+}
+
+function detectLang(): Lang {
+  const locales = globalThis.navigator?.languages?.length
+    ? globalThis.navigator.languages
+    : [globalThis.navigator?.language ?? ''];
+  return resolveLang(readSavedLang(), locales);
+}
+
 const zh = {
   // 通用
   'app.name': 'Audio Studio',
@@ -725,7 +764,7 @@ interface I18nState {
 export const useI18n = create<I18nState>()(
   persist(
     (set) => ({
-      lang: 'zh',
+      lang: detectLang(),
       setLang: (lang) => set({ lang }),
     }),
     { name: 'as-lang' },

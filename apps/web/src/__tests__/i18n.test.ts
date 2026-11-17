@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { DICTS, translate } from '../i18n';
+import { DICTS, resolveLang, translate } from '../i18n';
+
+describe('resolveLang', () => {
+  it('prefers saved choices and maps browser regions to the existing catalogs', () => {
+    expect(resolveLang('en', ['zh-CN'])).toBe('en');
+    expect(resolveLang('auto', ['zh-TW', 'en-US'])).toBe('zh');
+    expect(resolveLang(undefined, ['fr-FR', 'en-GB'])).toBe('en');
+    expect(resolveLang(undefined, ['fr-FR'])).toBe('zh');
+  });
+});
 
 describe('i18n 词典完整性', () => {
   it('中英文 key 集合完全一致', () => {
