@@ -145,13 +145,17 @@ py -3.14 apps/web/scripts/e2e-audio.py
 
 ## 最新更新
 
-### v0.2.1 — 2026-11-16
+<!-- github-release:start -->
 
-- 浏览器大文件在进入 FFmpeg.wasm 前执行硬限制预检，避免内存峰值导致整页崩溃。
-- Windows 原生任务同步应用通知和并发设置；设置重置同步恢复中文语言状态。
-- 增加历史记录 JSON 导入/导出、输入校验、全局错误恢复界面，并收紧 Tauri WebView CSP。
-- 本轮审计、15 个开源项目对标和 40 项升级路线见 [PROJECT_AUDIT.md](PROJECT_AUDIT.md)、[COMPETITOR_ANALYSIS.md](COMPETITOR_ANALYSIS.md)、[UPGRADE_ROADMAP.md](UPGRADE_ROADMAP.md) 与 [UPGRADE_REPORT.md](UPGRADE_REPORT.md)。
-- [下载 v0.2.1](https://github.com/yuchen0x1/Audio-Studio/releases/tag/v0.2.1)，完整分平台记录见 [更新日志](docs/releases/release-notes.md)。
+**[v0.2.2](https://github.com/yuchen0x1/Audio-Studio/releases/tag/v0.2.2)** · 2026-11-17
+
+本版为 Web 与 Windows 电脑版共用的应用壳层新增自动语言选择、手动中文/English 切换和持久化设置。导航、设置、错误恢复和窗口标题即时更新；音频文件、元数据、转换参数和用户任务数据保持原样。音频处理内核未在本版重写。
+
+[全部发行记录](https://github.com/yuchen0x1/Audio-Studio/releases)
+
+<!-- github-release:end -->
+
+[完整更新日志](docs/releases/release-notes.md)
 
 ---
 
