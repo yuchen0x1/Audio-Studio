@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 私密安全报告
+    url: https://github.com/yuchen0x1/Audio-Studio/security/advisories/new
+    about: 请通过此入口私下报告漏洞。

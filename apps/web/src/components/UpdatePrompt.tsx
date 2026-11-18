@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useT } from '../i18n';
 import { isDesktop, installDesktopUpdate, refreshWebUpdate, relaunchDesktop } from '../platform';
-import { getAvailableRelease, subscribeToAvailableRelease, type LatestRelease } from '../updates';
+import {
+  getAvailableRelease,
+  snoozeRelease,
+  subscribeToAvailableRelease,
+  type LatestRelease,
+} from '../updates';
 import { Modal } from './Modal';
 
 type UpdateState = 'available' | 'installing' | 'error';
@@ -40,7 +45,9 @@ export function UpdatePrompt() {
   );
 
   const close = () => {
-    if (state !== 'installing') setRelease(null);
+    if (state === 'installing') return;
+    if (release) snoozeRelease(release.tagName);
+    setRelease(null);
   };
 
   const install = async () => {
@@ -125,6 +132,9 @@ export function UpdatePrompt() {
               <div className="bold">
                 {t('updates.latestVersion')}: {release.tagName}
               </div>
+              <div className="field-hint">
+                {t('updates.currentVersion')} v{__APP_VERSION__}
+              </div>
               {release.publishedAt && (
                 <div className="field-hint">
                   {t('updates.publishedAt')}:{' '}
@@ -167,6 +177,9 @@ export function UpdatePrompt() {
           <p className="field-hint" style={{ marginBottom: 0, marginTop: 'var(--sp-3)' }}>
             {isDesktop ? t('updates.desktopInstallHint') : t('updates.webRefreshHint')}
           </p>
+          <a href={release.url} target="_blank" rel="noreferrer">
+            {t('updates.releaseNotes')}
+          </a>
         </>
       )}
     </Modal>

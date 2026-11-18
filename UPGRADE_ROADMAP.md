@@ -33,7 +33,9 @@
 - 参考/方案/效果：参考 Audacity/Tenacity 的可恢复桌面体验；新增 ErrorBoundary，提供重试、刷新、错误详情，且不上传日志。
 - 文件/难度/优先级/验收：`apps/web/src/components/ErrorBoundary.tsx`、`main.tsx`、`ErrorBoundary.test.tsx`；低；P0；故意抛出 render error 时出现 `role=alert` 恢复界面，测试通过。
 
-### EV-005 设置写入原子化与损坏回退 — `PLANNED`
+### EV-005 设置写入原子化与损坏回退 — `PARTIAL`
+
+v0.2.3 提供同目录临时写入、落盘和原子替换。旧 JSON 继续兼容，已经损坏的配置回到默认值，自动恢复上一次备份仍待设计。
 
 - 模块/问题/依据：Zustand persist 直接写 localStorage，极端中断或手工修改可能得到半截 JSON；依据 `apps/web/src/stores/settings.ts`。
 - 参考/方案/效果：参考 Ardour session 与 beets 配置回退；增加版本号、临时键/校验和，解析失败回退默认并保留诊断。
@@ -211,7 +213,9 @@
 - 参考/方案/效果：参考 FFmpeg.wasm 多实例与 Kdenlive 队列；增加背压、优先级、空闲实例回收和取消超时。
 - 文件/难度/优先级/验收：`WasmFfmpegEngine.ts`、scheduler tests；高；P2；并发 1–4 压测无任务饥饿，取消后实例可回收且无泄漏趋势。
 
-### EV-034 离线 PWA 更新恢复 — `PLANNED`
+### EV-034 离线 PWA 更新恢复 — `PARTIAL`
+
+v0.2.3 提供整份应用资源预缓存、构建与路径隔离和候选 Worker 确认切换。缓存回收及移动浏览器的配额行为仍需实机矩阵。
 
 - 模块/问题/依据：Service Worker 有缓存/版本逻辑，但网络中断时缺少用户可见恢复动作。
 - 参考/方案/效果：参考 Web/PWA 更新实践；显示缓存版本、下载失败重试、清理旧缓存和安全回退到上一版本。

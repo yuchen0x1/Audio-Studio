@@ -131,9 +131,9 @@ pub async fn set_ffmpeg_path(
             ));
         }
         // 真实可执行验证
-        let (ok, _out, err) = engine::run_capture(p, &["-version"])
+        let (ok, _out, _err) = engine::run_capture(p, &["-version"])
             .map_err(|e| safety::err("E_ENGINE_INIT", &format!("无法执行该 FFmpeg：{e}")))?;
-        if !ok && err.trim().is_empty() {
+        if !ok {
             return Err(safety::err(
                 "E_ENGINE_INIT",
                 "该文件不是可用的 FFmpeg（-version 失败）",
@@ -142,11 +142,12 @@ pub async fn set_ffmpeg_path(
         Some(trimmed)
     };
 
-    let mut st = state.settings.lock().unwrap().clone();
-    st.ffmpeg_path = effective.clone();
-    st.save(&state.settings_path)
+    let mut current = state.settings.lock().unwrap();
+    let mut next = current.clone();
+    next.ffmpeg_path = effective.clone();
+    next.save(&state.settings_path)
         .map_err(|e| safety::err("E_UNKNOWN", &format!("设置保存失败：{e}")))?;
-    *state.settings.lock().unwrap() = st;
+    *current = next;
     logging::info("settings", &format!("ffmpeg_path 设为 {effective:?}"));
     Ok(SetPathResult {
         ok: true,
@@ -408,10 +409,11 @@ pub fn get_settings(state: State<'_, AppState>) -> Result<Settings, String> {
 #[tauri::command]
 pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<Settings, String> {
     let sanitized = settings.sanitized();
+    let mut current = state.settings.lock().unwrap();
     sanitized
         .save(&state.settings_path)
         .map_err(|e| safety::err("E_PERMISSION", &format!("设置保存失败：{e}")))?;
-    *state.settings.lock().unwrap() = sanitized.clone();
+    *current = sanitized.clone();
     logging::info(
         "settings",
         &format!(

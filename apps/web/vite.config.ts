@@ -1,12 +1,23 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import { webDistribution } from './scripts/web-build';
 
 export default defineConfig(({ mode }) => {
   const isDesktop = mode === 'desktop';
+  const webRelease = mode === 'web-release';
   return {
     base: './',
-    plugins: [react()],
+    plugins: [
+      react(),
+      isDesktop
+        ? {
+            name: 'audio-studio-desktop-html',
+            transformIndexHtml: (html) =>
+              html.replace(/^\s*<link rel="(?:manifest|icon|apple-touch-icon)".*\/>\r?\n/gm, ''),
+          }
+        : webDistribution(webRelease),
+    ],
     resolve: {
       alias: {
         '@shared': fileURLToPath(new URL('../../packages/shared/src', import.meta.url)),
@@ -32,6 +43,7 @@ export default defineConfig(({ mode }) => {
       exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
     },
     build: {
+      copyPublicDir: !isDesktop && !webRelease,
       target: 'es2022',
       sourcemap: false,
       chunkSizeWarningLimit: 4096,

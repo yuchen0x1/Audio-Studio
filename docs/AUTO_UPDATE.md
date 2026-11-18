@@ -2,7 +2,7 @@
 
 本文说明当前 main 为 Windows 电脑版与网页版实现的更新方案。两端使用 GitHub Releases 发现版本，安装或资源切换由平台能力决定。历史 v0.1.0 的发行附件不包含当前签名更新清单，不将方案实现视为该旧版本的安装升级已经验证。
 
-当前稳定版为 [v0.2.1](https://github.com/yuchen0x1/Audio-Studio/releases/tag/v0.2.1)，发布工作流会核对更新签名、版本绑定、`latest.json` 和 SHA-256 校验文件。安装器具有 Tauri 更新签名，尚未配置 Windows Authenticode 发布者证书；旧客户端发现、安装、重启的完整更新流程仍需实机验收。
+[当前稳定版](https://github.com/yuchen0x1/Audio-Studio/releases/latest)提供安装包、`latest.json` 和 SHA-256 校验文件。Tauri 更新签名用于应用内验签。Windows 系统的发布者认证需要单独的 Authenticode 证书。
 
 ## 方案总览
 
@@ -18,7 +18,8 @@
 - Web 和 Windows 共享 `apps/web/src/updates.ts`：启动时检查，成功检查后 24 小时内不重复请求；网络失败不阻止应用启动。
 - 设置页支持手动检查、启用/关闭自动检查，并显示发布时间、更新日志和发布文件大小。
 - Windows 的“立即更新”走 `tauri-plugin-updater`，下载进度来自真实下载事件；安装完成后调用 Tauri relaunch。
-- Web 的“立即更新”只负责切换 waiting Service Worker 并刷新；它不能替换服务器上的旧部署。
+- 选择“稍后提醒”会暂停对该标签的自动弹窗，设置页仍可手动打开。
+- Web 候选 Worker 会先完整缓存页面资源。点击“立即更新”后，只有候选部署就绪并触发 `controllerchange` 才会刷新。候选部署失败时继续使用当前版本。
 
 ## Windows 签名配置
 
@@ -33,14 +34,7 @@ Tauri 更新包必须使用与 `apps/desktop/src-tauri/tauri.conf.json` 中公�
 
 所有更新都从 `main` 发布：
 
-```powershell
-git switch main
-git pull --ff-only
-# 完成修改、测试并提交
-git tag v0.1.1
-git push origin main
-git push origin v0.1.1
-```
+先通过 PR 把带统一版本和更新日志的代码合入 `main`，同步至本地。在已通过 CI 的提交上创建并推送版本标签。可先用 `python scripts/verify-release.py v0.2.3` 检查标签、工作区版本和锁文件是否一致，需 Python 3.11+。
 
 在创建标签前，把“未发布”内容整理到准确的版本标题，例如 `## v0.1.1 — YYYY-MM-DD`，并保留所有旧版本记录。可以先预览对应正文：
 
@@ -52,12 +46,13 @@ pnpm test:release-notes
 推送 `v*` 标签会触发 `.github/workflows/release.yml`。工作流会：
 
 1. 校验标签符合 `vMAJOR.MINOR.PATCH`（可带预发布后缀）。
-2. 对推送标签确认其提交位于 `main` 历史中。
+2. 确认标签提交位于 `main` 历史中，并用该提交的 SHA 构建两端。
 3. 运行 Web/shared 类型检查、Lint、格式检查和测试。
 4. 构建 Web ZIP 和 Windows MSI/NSIS 签名包。
 5. 从 `docs/releases/release-notes.md` 提取准确版本段落，缺少、重复或空日志时拒绝发布；同一段落用于 GitHub Release 正文和 Tauri `latest.json` 的更新说明。
 6. 根据实际产物生成 `release-manifest.json` 和 `SHA256SUMS.txt`。
-7. 创建 GitHub Release；预发布版本自动标记为 prerelease。
+7. 先验证 Windows 安装冒烟和 minisign 公钥验签，再创建草稿、上传资产并逐一核对 GitHub 返回的 SHA-256，通过后公开发布。预发布版本标记为 prerelease。
+8. 每周从稳定版下载资产，复查 SHA-256、发布清单和更新 URL。
 
 正式发布前必须确认 Actions 使用了正确的 Secrets，并检查 Release 资产是否包含：
 
@@ -71,7 +66,8 @@ pnpm test:release-notes
 
 - 版本检查失败、GitHub 不可访问或 Release 不存在时，应用继续使用当前版本。
 - Tauri 更新在验签通过前不会安装；下载/签名失败会保留旧版本。
-- Web 更新失败时不会删除当前缓存资源；浏览器刷新仍使用现有部署。
+- Web 更新失败时保留当前缓存。若已上线的版本有问题，部署者可以恢复上一份完整站点目录（含匹配的引擎），并验证浏览器切换；部署需要保留前一份归档。
+- Windows 下载或验签失败可直接重试。安装失败后由维护者检查安装器和系统记录。需要回退时，先备份用户设置与历史，再在隔离环境验证旧版本安装。应用内更新拒绝降级，当前没有安装后自动回滚。
 - 仅有代码、构建成功或历史 Release，不足以证明签名更新可安装；需旧客户端发现、验签、安装并启动新版的实际证据。
 
 ## 本地测试

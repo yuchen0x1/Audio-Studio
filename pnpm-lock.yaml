@@ -45,7 +45,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       '@ffmpeg/core':
-        specifier: ^0.12.10
+        specifier: 0.12.10
         version: 0.12.10
       '@ffmpeg/ffmpeg':
         specifier: ^0.12.15

@@ -5,7 +5,11 @@
 
 专业音频转换工具，提供 **Windows 电脑版和网页版**，两端复用共享核心逻辑与 React 界面。
 
-支持 13 种音频格式互转、批量处理、无损剪辑、合并、元数据与封面编辑，以及频谱/响度分析。Web 端基于 FFmpeg.wasm，Windows 电脑版调用本地原生 FFmpeg。
+提供 13 种格式的参数配置、批量处理、无损剪辑、合并、元数据与封面编辑，以及频谱/响度分析。可用的输入和输出格式取决于运行时引擎能力。Web 端基于 FFmpeg.wasm，Windows 电脑版调用本地原生 FFmpeg。
+
+[下载最新稳定版](https://github.com/yuchen0x1/Audio-Studio/releases/latest) · [平台与功能对照](docs/PLATFORMS.md) · [反馈问题](https://github.com/yuchen0x1/Audio-Studio/issues/new/choose)
+
+![Audio Studio 首页](docs/screenshots/workbench-home.png)
 
 ---
 
@@ -33,7 +37,7 @@
 | 层 | 技术 |
 |---|---|
 | 共享核心 | TypeScript（纯逻辑，零运行时依赖），格式化参数、命名规则、任务状态机、错误码、能力矩阵、校验规则 |
-| Web | React 18 + Vite 5 + Zustand + FFmpeg.wasm 0.12（多线程实例池、IndexedDB 历史） |
+| Web | React 18 + Vite 6 + Zustand + FFmpeg.wasm 0.12（单线程内核的实例池、IndexedDB 历史） |
 | Windows 桌面 | Tauri 2 + Rust，原生 FFmpeg 进程调用，Windows 通知与文件对话框 |
 
 Web 前端同时作为桌面版 UI（`vite build --mode desktop`）。两端共用 TypeScript 参数核心和 React 界面，分别调用浏览器 wasm 与 Windows 原生音频引擎。
@@ -61,7 +65,7 @@ Web 前端同时作为桌面版 UI（`vite build --mode desktop`）。两端共�
 
 ## 快速开始
 
-需要 **Node.js ≥ 20** 与 **pnpm 11**（仓库锁定 `pnpm@11.20.0`，建议用 corepack 启用）。
+需要 **Node.js ≥ 22.13** 与 **pnpm 11**（仓库锁定 `pnpm@11.20.0`）。
 
 ```bash
 pnpm install          # 会自动把 FFmpeg.wasm 内核复制到 apps/web/public/ffmpeg
@@ -80,17 +84,22 @@ pnpm test             # shared + web 单元测试
 pnpm test:coverage    # 带 v8 覆盖率（输出 lcov + html）
 pnpm build:web        # 构建 Web 产物到 apps/web/dist
 
-# 桌面版（需 Rust 1.77+ 与 WebView2）
+# 桌面版（需稳定版 Rust、MSVC 和 WebView2）
 pnpm build:desktop-ui
-cd apps/desktop/src-tauri && cargo run          # 开发运行
-cd apps/desktop/src-tauri && cargo build        # 生成可执行文件
-npx tauri build                                  # 打包 MSI / NSIS 安装包
+cargo run --manifest-path apps/desktop/src-tauri/Cargo.toml
 
 ```
 
 ### 桌面版依赖
 
 桌面端调用系统 FFmpeg，需要保证 `ffmpeg`/`ffprobe` 在 `PATH` 中，或放在应用同目录下。
+
+### 安装或部署
+
+- **Windows x64** 从 [稳定版下载](https://github.com/yuchen0x1/Audio-Studio/releases/latest) 选择 NSIS EXE 或 MSI。启动后可在设置中检查 FFmpeg 和应用更新。
+- **Web / PWA** 解压 v0.2.3 起的 Web ZIP，在目录中运行 `node prepare-ffmpeg.mjs`。此步骤需要 Node.js、`tar` 和至 npm 官方注册表的网络连接。脚本核对 FFmpeg.wasm 包的 SHA-512 后准备两个引擎文件。用 HTTPS 静态服务发布整个目录，开发验收可用 localhost。PWA 支持时可通过浏览器菜单安装。
+- **引擎未就绪** 检查两个 `ffmpeg/` 文件是否部署到与页面同源的路径，确认服务器为 WASM 返回 `application/wasm`。Windows 版可在设置中核对本地 FFmpeg 路径和编码器能力。
+- **更新与文件恢复** 见 [自动更新说明](docs/AUTO_UPDATE.md)。开始更新前先完成任务并下载结果，历史记录可导出为 JSON。
 
 ---
 
@@ -99,8 +108,8 @@ npx tauri build                                  # 打包 MSI / NSIS 安装包
 | 范围 | 用例数 | 命令 |
 |---|---|---|
 | 共享核心 | 101（含 20 项需系统 FFmpeg/FFprobe 的条件集成测试） | `pnpm --filter @audio-studio/shared test` |
-| Web | 136 | `pnpm --filter @audio-studio/web test` |
-| Rust | 45 | `cd apps/desktop/src-tauri && cargo test` |
+| Web | 137 | `pnpm --filter @audio-studio/web test` |
+| Rust | 47 | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked` |
 | 发布日志提取 | 5 | `pnpm test:release-notes` |
 
 测试使用包内临时目录并串行执行，避免并发写缓存导致的偶发失败。`pnpm test:coverage` 可生成 v8 覆盖率（lcov + html）；本轮未重新生成覆盖率报告，不沿用旧百分比作为当前结果。
@@ -139,29 +148,21 @@ py -3.14 apps/web/scripts/e2e-audio.py
 
 ## 许可证
 
-[MIT](./LICENSE)
+[MIT](./LICENSE) · [第三方组件](docs/THIRD_PARTY.md)
 
 ---
 
 ## 最新更新
 
-<!-- github-release:start -->
+**v0.2.3** 改善 PWA 离线打开和资源更新，Windows 设置使用完整文件替换。通过“稍后提醒”关闭后，可在设置中重新打开同一版本的更新详情。
 
-**[v0.2.2](https://github.com/yuchen0x1/Audio-Studio/releases/tag/v0.2.2)** · 2026-11-17
-
-本版为 Web 与 Windows 电脑版共用的应用壳层新增自动语言选择、手动中文/English 切换和持久化设置。导航、设置、错误恢复和窗口标题即时更新；音频文件、元数据、转换参数和用户任务数据保持原样。音频处理内核未在本版重写。
-
-[全部发行记录](https://github.com/yuchen0x1/Audio-Studio/releases)
-
-<!-- github-release:end -->
-
-[完整更新日志](docs/releases/release-notes.md)
+[当前稳定版与下载](https://github.com/yuchen0x1/Audio-Studio/releases/latest) · [完整更新日志](docs/releases/release-notes.md)
 
 ---
 
 ## 持续集成与发布
 
-更新与签名配置见 [自动更新说明](docs/AUTO_UPDATE.md)。CI 检查共享核心、Web 和 Windows 桌面；不再构建 Android。
+更新与签名配置见 [自动更新说明](docs/AUTO_UPDATE.md)。CI 检查共享核心、Web 和 Windows 桌面。
 
 | Job | 内容 |
 |---|---|
@@ -173,6 +174,8 @@ py -3.14 apps/web/scripts/e2e-audio.py
 后续发行产物包括 Web ZIP、Windows EXE / MSI 及 `.sig`、`latest.json`、`release-manifest.json` 和 `SHA256SUMS.txt`。Windows 自动安装要求有效 Tauri 签名；Web 更新只能切换已经部署到服务器的新资源。
 
 历史 v0.1.0 曾包含 Android APK，且没有当前签名更新清单，具体限制保留在历史日志中。移除本地工程不等于已删除远程历史附件。
+
+[贡献指南](CONTRIBUTING.md) · [安全报告](SECURITY.md) · [升级路线](UPGRADE_ROADMAP.md) · [维护状态](docs/MAINTENANCE.md)
 
 ## 仓库文件管理
 

@@ -24,11 +24,13 @@ jobs:
     name: 类型检查与测试
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -46,6 +48,16 @@ jobs:
       - name: 格式检查
         run: pnpm format:check
 
+      - name: 依赖安全检查
+        run: pnpm audit --registry https://registry.npmjs.org --prod --audit-level high
+
+      - name: 安装原生集成测试所需的 FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
+
       - name: 单元测试（shared + web）
         run: pnpm test
 
@@ -53,7 +65,7 @@ jobs:
         run: pnpm test:coverage
 
       - name: 上传覆盖率报告
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: coverage
           path: |
@@ -62,10 +74,10 @@ jobs:
           retention-days: 7
 
       - name: 构建 Web
-        run: pnpm build:web
+        run: pnpm build:web:release
 
       - name: 上传 Web 产物
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: web-dist
           path: apps/web/dist
@@ -76,20 +88,23 @@ jobs:
     name: Windows 桌面
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
+          toolchain: stable
           components: rustfmt, clippy
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: apps/desktop/src-tauri -> target
 
@@ -127,7 +142,7 @@ jobs:
           pnpm --filter @audio-studio/desktop exec tauri build --config $configPath
 
       - name: 上传安装包
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: desktop-bundles
           if-no-files-found: error
@@ -135,3 +150,11 @@ jobs:
           path: |
             apps/desktop/src-tauri/target/release/bundle/msi/*.msi
             apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+
+      - name: 安装、启动和卸载 NSIS 安装包
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*.exe -File
+          if (@($installer).Count -ne 1) { throw 'Expected exactly one Windows installer' }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          ./scripts/smoke-windows-installer.ps1 -Installer $installer.FullName -Version $version

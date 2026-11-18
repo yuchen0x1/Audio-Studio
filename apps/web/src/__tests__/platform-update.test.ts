@@ -68,7 +68,7 @@ describe('refreshWebUpdate Service Worker 时序', () => {
 
     await refreshWebUpdate((value) => progress.push(value));
 
-    expect(registration.update).toHaveBeenCalledTimes(1);
+    expect(registration.update).not.toHaveBeenCalled();
     expect(worker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
     expect(serviceWorker.addEventListener).toHaveBeenCalledWith(
       'controllerchange',
@@ -79,12 +79,12 @@ describe('refreshWebUpdate Service Worker 时序', () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
-  it('没有 waiting worker 时仍完成刷新流程，不发送 skip waiting', async () => {
+  it('尚未部署新版时保留当前页面及缓存', async () => {
     const reload = mockReload();
     const registration = {
       update: vi.fn().mockResolvedValue(undefined),
       waiting: null,
-      active: null,
+      active: { postMessage: vi.fn() },
     };
     const serviceWorker = {
       getRegistration: vi.fn().mockResolvedValue(registration),
@@ -94,9 +94,11 @@ describe('refreshWebUpdate Service Worker 时序', () => {
     installServiceWorkerMock(serviceWorker);
     const { refreshWebUpdate } = await import('../platform');
 
-    await refreshWebUpdate();
+    await expect(refreshWebUpdate()).rejects.toThrow('No new deployment');
 
-    expect(reload).toHaveBeenCalledTimes(1);
+    expect(registration.update).toHaveBeenCalledTimes(1);
+    expect(registration.active.postMessage).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('没有注册信息时直接刷新，不报告更新进度', async () => {

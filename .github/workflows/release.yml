@@ -11,11 +11,11 @@ on:
         type: string
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   NODE_VERSION: '22'
@@ -30,25 +30,20 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
+      sha: ${{ steps.version.outputs.sha }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
-          ref: ${{ env.RELEASE_TAG }}
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
       - name: 校验标签来自 main
         shell: bash
         run: |
           set -euo pipefail
           target_ref="refs/tags/${RELEASE_TAG}"
-          target_sha="$(git rev-list -n 1 "$target_ref" 2>/dev/null || true)"
-          if [[ -z "$target_sha" ]]; then
-            if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-              target_sha="$GITHUB_SHA"
-            else
-              echo "找不到发布标签 ${RELEASE_TAG}" >&2
-              exit 1
-            fi
-          fi
+          target_sha="$(git rev-list -n 1 "$target_ref")"
+          test "$target_sha" = "$(git rev-parse HEAD)"
           if ! git merge-base --is-ancestor "$target_sha" origin/main; then
             echo "发布标签必须指向 main 上的提交: $target_sha" >&2
             exit 1
@@ -58,10 +53,8 @@ jobs:
         run: |
           set -euo pipefail
           version="${RELEASE_TAG#v}"
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "RELEASE_TAG 必须是 v<SemVer>，实际为: $RELEASE_TAG" >&2
-            exit 1
-          fi
+          python3 scripts/verify-release.py "$RELEASE_TAG"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if [[ "$version" == *-* ]]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
@@ -77,11 +70,12 @@ jobs:
     env:
       AUDIO_STUDIO_VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ env.RELEASE_TAG }}
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
+          ref: ${{ needs.version.outputs.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -89,15 +83,33 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
       - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm audit --registry https://registry.npmjs.org --prod --audit-level high
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
       - run: pnpm test
-      - run: pnpm build:web
+      - run: pnpm build:web:release
+
+      - name: 校验 Web 交付结构与引擎准备
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s apps/web/dist/sw.js
+          test -s apps/web/dist/prepare-ffmpeg.mjs
+          test ! -e apps/web/dist/ffmpeg
+          mkdir "$RUNNER_TEMP/web-validate"
+          cp apps/web/dist/prepare-ffmpeg.mjs "$RUNNER_TEMP/web-validate/"
+          node "$RUNNER_TEMP/web-validate/prepare-ffmpeg.mjs"
+          cmp "$RUNNER_TEMP/web-validate/ffmpeg/ffmpeg-core.wasm" apps/web/public/ffmpeg/ffmpeg-core.wasm
+          cmp "$RUNNER_TEMP/web-validate/ffmpeg/ffmpeg-core.js" apps/web/public/ffmpeg/ffmpeg-core.js
 
       - name: 压缩为 zip
         run: |
           cd apps/web/dist
           zip -qr "../../../AudioStudio-${RELEASE_TAG}-web.zip" .
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: release-web
           if-no-files-found: error
@@ -111,16 +123,19 @@ jobs:
     env:
       RELEASE_VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ env.RELEASE_TAG }}
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
+          ref: ${{ needs.version.outputs.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: apps/desktop/src-tauri -> target
 
@@ -137,6 +152,10 @@ jobs:
 
       - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
       - run: pnpm build:desktop-ui
+      - name: 确认桌面安装只使用原生 FFmpeg
+        shell: pwsh
+        run: |
+          if (Test-Path apps/web/dist/ffmpeg) { throw '桌面安装包不应携带 Web FFmpeg 核心' }
       - name: 构建带签名的桌面更新包
         shell: pwsh
         env:
@@ -150,8 +169,15 @@ jobs:
           @{ version = $env:RELEASE_VERSION } | ConvertTo-Json | Set-Content -Path $configPath -Encoding utf8
           pnpm --filter @audio-studio/desktop exec tauri build --config $configPath
 
+      - name: 安装、启动和卸载签名版 NSIS 安装包
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*.exe -File
+          if (@($installer).Count -ne 1) { throw 'Expected exactly one Windows installer' }
+          ./scripts/smoke-windows-installer.ps1 -Installer $installer.FullName -Version $env:RELEASE_VERSION
+
       - name: 上传安装包
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: release-desktop
           if-no-files-found: error
@@ -166,14 +192,20 @@ jobs:
     name: 创建 Release
     needs: [version, web, desktop]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       RELEASE_VERSION: ${{ needs.version.outputs.version }}
+      RELEASE_SHA: ${{ needs.version.outputs.sha }}
+      PRERELEASE: ${{ needs.version.outputs.prerelease }}
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ needs.version.outputs.sha }}
+          persist-credentials: false
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false
@@ -184,13 +216,18 @@ jobs:
           node scripts/release-notes.mjs "$RELEASE_TAG" "$RUNNER_TEMP/release-notes.md"
           echo "RELEASE_NOTES_PATH=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_ENV"
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           path: dist
           merge-multiple: true
 
       - name: 列出待发布文件
         run: ls -lh dist
+
+      - name: 安装签名验证工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y minisign
 
       - name: 统一 GitHub 附件文件名
         shell: bash
@@ -303,7 +340,6 @@ jobs:
               seen_names.add(name)
               assets.append({
                   'name': name,
-                  'path': path.relative_to(root).as_posix(),
                   'sizeBytes': path.stat().st_size,
                   'sha256': digest(path),
                   'url': f'https://github.com/${{ github.repository }}/releases/download/{tag}/{name}',
@@ -326,7 +362,7 @@ jobs:
 
           checksum_lines = []
           for path in sorted(p for p in root.rglob('*') if p.is_file() and p.name != 'SHA256SUMS.txt'):
-              checksum_lines.append(f'{digest(path)}  {path.relative_to(root).as_posix()}')
+              checksum_lines.append(f'{digest(path)}  {path.name}')
           (root / 'SHA256SUMS.txt').write_text('\n'.join(checksum_lines) + '\n')
           PY
           test -s dist/release-manifest.json
@@ -334,25 +370,31 @@ jobs:
           cat dist/release-manifest.json
           cat dist/SHA256SUMS.txt
 
-      - name: 创建 GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: Audio Studio ${{ env.RELEASE_TAG }}
-          draft: false
-          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
-          body_path: ${{ runner.temp }}/release-notes.md
-          # artifact 下载后保留了 msi/ 、nsis/ 子目录，必须显式列出
-          files: |
-            dist/*.zip
-            dist/msi/*.msi
-            dist/nsis/*.exe
-            dist/nsis/*.exe.sig
-            dist/msi/*.msi.sig
-            dist/latest.json
-            dist/release-manifest.json
-            dist/SHA256SUMS.txt
-          fail_on_unmatched_files: true
+      - name: 上传草稿并核对资产
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-release.py "$RELEASE_TAG" dist "$GITHUB_REPOSITORY" --verify-signatures
+          remote_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${RELEASE_TAG}" --jq .sha)
+          test "$remote_sha" = "$RELEASE_SHA"
+          existing=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | .id")
+          if [[ -n "$existing" ]]; then
+            echo "标签已有 Release 或草稿。请审阅已存在的资产和结果。" >&2
+            exit 1
+          fi
+          mapfile -t assets < <(find dist -type f | sort)
+          gh release create "$RELEASE_TAG" "${assets[@]}" --verify-tag --draft \
+            --prerelease="$PRERELEASE" --title "Audio Studio $RELEASE_TAG" --notes-file "$RELEASE_NOTES_PATH"
+          python3 scripts/verify-release.py "$RELEASE_TAG" dist "$GITHUB_REPOSITORY" --draft
+
+      - name: 发布已验证的 Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest=true
+          if [[ "$PRERELEASE" == true ]]; then latest=false; fi
+          gh release edit "$RELEASE_TAG" --draft=false --latest="$latest"
+          python3 scripts/verify-release.py "$RELEASE_TAG" dist "$GITHUB_REPOSITORY" --published
 
       - name: 输出发布地址
         run: echo "已发布 https://github.com/${{ github.repository }}/releases/tag/${RELEASE_TAG}"

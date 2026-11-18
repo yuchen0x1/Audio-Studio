@@ -244,11 +244,10 @@ export async function relaunchDesktop(): Promise<void> {
 async function findWaitingWorker(
   registration: ServiceWorkerRegistration,
 ): Promise<ServiceWorker | null> {
-  const existingWaiting = registration.waiting;
+  if (registration.waiting) return registration.waiting;
   const installingBeforeUpdate = registration.installing;
   await registration.update();
   if (registration.waiting) return registration.waiting;
-  if (existingWaiting && existingWaiting.state !== 'redundant') return existingWaiting;
 
   const installing = registration.installing ?? installingBeforeUpdate;
   if (!installing) return null;
@@ -297,20 +296,6 @@ async function waitForControllerChange(): Promise<boolean> {
   });
 }
 
-async function clearWebCaches(registration: ServiceWorkerRegistration): Promise<void> {
-  const active = registration.active ?? navigator.serviceWorker.controller;
-  if (!active) return;
-  await new Promise<void>((resolve) => {
-    const channel = new MessageChannel();
-    const timeout = window.setTimeout(resolve, 5_000);
-    channel.port1.onmessage = () => {
-      window.clearTimeout(timeout);
-      resolve();
-    };
-    active.postMessage({ type: 'CLEAR_CACHES' }, [channel.port2]);
-  });
-}
-
 /**
  * 让 Web Service Worker 获取最新资源并刷新页面。
  * 浏览器不能替换服务器部署文件，因此“立即更新”只负责拉取已发布的新版本。
@@ -341,11 +326,9 @@ export async function refreshWebUpdate(onProgress?: UpdateProgressHandler): Prom
     // 监听必须先于 SKIP_WAITING 注册，确保不丢失 controllerchange。
     const controllerChange = waitForControllerChange();
     if (registration.waiting === worker) worker.postMessage({ type: 'SKIP_WAITING' });
-    const changed = await controllerChange;
-    if (changed) await clearWebCaches(registration);
-  } else {
-    // update() 没有产生 waiting worker 时，仍清理旧缓存，避免刷新继续命中旧资源。
-    await clearWebCaches(registration);
+    if (!(await controllerChange)) throw new Error('Service Worker activation timed out');
+  } else if (registration.active) {
+    throw new Error('No new deployment is ready');
   }
   onProgress?.(1);
   window.location.reload();
