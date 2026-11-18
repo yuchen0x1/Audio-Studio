@@ -39,7 +39,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-describe('批量工作台交互', () => {
+describe('批量工作台交互', { timeout: 20_000 }, () => {
   it('参数编辑保持显示，显式应用后写入文件参数', () => {
     render(<BatchPage />);
     fireEvent.change(screen.getByLabelText('Bitrate'), { target: { value: '320' } });

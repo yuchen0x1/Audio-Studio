@@ -1,0 +1,27 @@
+name: Release health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '34 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  stable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: 校验稳定版元数据和公开下载
+        run: |
+          set -euo pipefail
+          tag=$(gh release view --json tagName --jq .tagName)
+          mkdir "${RUNNER_TEMP}/assets"
+          gh release download "$tag" --dir "${RUNNER_TEMP}/assets"
+          python3 scripts/verify-release.py "$tag" "${RUNNER_TEMP}/assets" "$GITHUB_REPOSITORY" --published

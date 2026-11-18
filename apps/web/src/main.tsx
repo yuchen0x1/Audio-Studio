@@ -9,9 +9,9 @@ import './styles/components.css';
 import './styles/layout.css';
 
 // PWA：仅生产环境注册 Service Worker
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+if (import.meta.env.PROD && __APP_TARGET__ === 'web' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => undefined);
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => undefined);
   });
 }
 

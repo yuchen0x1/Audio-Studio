@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
     installDesktopUpdate: vi.fn(),
     relaunchDesktop: vi.fn(),
     getAvailableRelease: vi.fn(() => null),
+    snoozeRelease: vi.fn(),
     subscribeToAvailableRelease: vi.fn((listener: (release: LatestRelease) => void) => {
       releaseListener = listener;
       return () => {
@@ -50,6 +51,7 @@ vi.mock('../platform', () => ({
 
 vi.mock('../updates', () => ({
   getAvailableRelease: mocks.getAvailableRelease,
+  snoozeRelease: mocks.snoozeRelease,
   subscribeToAvailableRelease: mocks.subscribeToAvailableRelease,
 }));
 
@@ -57,6 +59,7 @@ import { UpdatePrompt } from '../components/UpdatePrompt';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal('__APP_VERSION__', '0.1.0');
   useI18n.getState().setLang('zh');
   mocks.getAvailableRelease.mockReturnValue(null);
   mocks.refreshWebUpdate.mockResolvedValue(undefined);
@@ -64,6 +67,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe('UpdatePrompt 更新流程', () => {
@@ -77,6 +81,7 @@ describe('UpdatePrompt 更新流程', () => {
     fireEvent.click(screen.getByRole('button', { name: '稍后提醒' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(mocks.refreshWebUpdate).not.toHaveBeenCalled();
+    expect(mocks.snoozeRelease).toHaveBeenCalledWith('v0.2.0');
   });
 
   it('立即更新调用 Web 刷新，并在执行期间防止重复点击', async () => {

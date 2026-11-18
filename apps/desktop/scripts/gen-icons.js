@@ -152,3 +152,9 @@ fs.writeFileSync(path.join(outDir, 'icon.ico'), encodeIco([
 ]));
 
 console.log('icons generated in', outDir);
+
+const webIcons = path.join(__dirname, '..', '..', 'web', 'public', 'icons');
+fs.mkdirSync(webIcons, { recursive: true });
+for (const size of [192, 512]) {
+  fs.writeFileSync(path.join(webIcons, `icon-${size}.png`), encodePng(size, pixel));
+}

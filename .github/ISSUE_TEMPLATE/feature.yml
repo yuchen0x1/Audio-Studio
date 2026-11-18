@@ -1,0 +1,9 @@
+name: 功能建议
+description: 说明希望完成的音频处理任务
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: 使用场景、受影响的平台和预期结果
+    validations:
+      required: true

@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
+use std::io::Write;
 use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,12 +55,18 @@ impl Settings {
     }
 
     pub fn save(&self, path: &Path) -> io::Result<()> {
-        if let Some(dir) = path.parent() {
-            fs::create_dir_all(dir)?;
-        }
+        let dir = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        fs::create_dir_all(dir)?;
         let text = serde_json::to_string_pretty(self)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        fs::write(path, text)
+        let mut pending = tempfile::NamedTempFile::new_in(dir)?;
+        pending.write_all(text.as_bytes())?;
+        pending.as_file().sync_all()?;
+        pending.persist(path)?;
+        Ok(())
     }
 }
 
@@ -132,5 +139,30 @@ mod tests {
         assert_eq!(loaded.max_concurrent_tasks, 3);
         assert!(!loaded.notifications_enabled);
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn save_replaces_existing_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        Settings::default().save(&path).unwrap();
+        Settings {
+            max_concurrent_tasks: 4,
+            ..Default::default()
+        }
+        .save(&path)
+        .unwrap();
+        assert_eq!(Settings::load(&path).max_concurrent_tasks, 4);
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn failed_replacement_cleans_up_temporary_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::create_dir(&path).unwrap();
+        assert!(Settings::default().save(&path).is_err());
+        assert!(path.is_dir());
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 }

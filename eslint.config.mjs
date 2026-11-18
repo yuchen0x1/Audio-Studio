@@ -40,6 +40,10 @@ export default tseslint.config(
     },
   },
   {
+    files: ['apps/web/scripts/sw-template.js'],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     files: ['**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: {

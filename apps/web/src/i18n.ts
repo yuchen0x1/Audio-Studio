@@ -342,6 +342,7 @@ const zh = {
   'updates.current': '当前已是最新版本',
   'updates.checkFailed': '暂时无法检查更新，请检查网络后重试。',
   'updates.latestVersion': '最新版本',
+  'updates.currentVersion': '当前版本',
   'updates.publishedAt': '发布时间',
   'updates.justNow': '刚刚',
   'updates.releaseNotes': '更新日志',
@@ -359,7 +360,7 @@ const zh = {
   'updates.keepOpen': '请保持应用打开，完成后会自动重启或刷新。',
   'updates.installFailed': '更新失败，请稍后重试。',
   'updates.desktopInstallHint': '桌面版会下载签名安装包，安装完成后自动重启并打开新版本。',
-  'updates.webRefreshHint': '网页无法替换服务器文件；发布完成后会自动切换到最新资源并刷新页面。',
+  'updates.webRefreshHint': '网站部署完成后可切换到新版本。若此站点尚未部署新版，请稍后重试。',
   'updates.availableBadge': '可更新',
 
   // 播放器
@@ -692,6 +693,7 @@ const en: Record<keyof Dict, string> = {
   'updates.current': 'You are using the latest version',
   'updates.checkFailed': 'Could not check for updates. Check your connection and try again.',
   'updates.latestVersion': 'Latest version',
+  'updates.currentVersion': 'Current version',
   'updates.publishedAt': 'Published',
   'updates.justNow': 'Just now',
   'updates.releaseNotes': 'Release notes',
@@ -711,7 +713,7 @@ const en: Record<keyof Dict, string> = {
   'updates.desktopInstallHint':
     'The desktop app downloads a signed installer, then restarts and opens the new version automatically.',
   'updates.webRefreshHint':
-    'A web app cannot replace server files. Once deployment is complete, it switches to the latest resources and refreshes.',
+    'An update is ready once this site deploys the new version. If deployment is pending, try again later.',
   'updates.availableBadge': 'Update available',
 
   'player.play': 'Play',

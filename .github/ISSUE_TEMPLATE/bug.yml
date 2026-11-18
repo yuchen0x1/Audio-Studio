@@ -1,0 +1,23 @@
+name: 故障、平台兼容或更新问题
+description: 提供能重现故障的步骤和运行环境
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: 问题类型
+      options: [功能故障, 平台兼容, 更新失败]
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 应用版本、系统、浏览器或 FFmpeg 版本
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 操作步骤、期望和实际结果
+      description: 更新失败请注明原版本、目标版本和失败阶段。日志请先去除私密路径和内容。
+    validations:
+      required: true

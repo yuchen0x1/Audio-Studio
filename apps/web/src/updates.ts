@@ -8,6 +8,7 @@ const REPOSITORY = 'yuchen0x1/Audio-Studio';
 const RELEASES_API = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
 const CHECKED_AT_KEY = 'as-update-check-at';
 const NOTIFIED_TAG_KEY = 'as-update-notified-tag';
+const SNOOZED_TAG_KEY = 'as-update-snoozed-tag';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export interface LatestRelease {
@@ -37,6 +38,7 @@ interface GitHubReleaseResponse {
 
 let memoryCheckedAt = 0;
 let memoryNotifiedTag = '';
+let snoozedTag = '';
 let availableRelease: LatestRelease | null = null;
 let inFlightRelease: { currentVersion: string; promise: Promise<LatestRelease> } | null = null;
 const releaseListeners = new Set<(release: LatestRelease) => void>();
@@ -64,6 +66,12 @@ function publishAvailableRelease(release: LatestRelease): void {
 /** 将一次检查结果广播给设置页和全局更新弹窗。 */
 export function announceRelease(release: LatestRelease): void {
   publishAvailableRelease(release);
+}
+
+export function snoozeRelease(tagName: string): void {
+  snoozedTag = tagName;
+  writeStorage(SNOOZED_TAG_KEY, tagName);
+  if (availableRelease?.tagName === tagName) availableRelease = null;
 }
 
 function readStorage(key: string): string | null {
@@ -219,6 +227,8 @@ export function startUpdateMonitor(currentVersion: string): () => void {
         publishAvailableRelease(release);
         return;
       }
+      if (snoozedTag === release.tagName || readStorage(SNOOZED_TAG_KEY) === release.tagName)
+        return;
       publishAvailableRelease(release);
       if (wasNotified(release.tagName)) return;
       recordNotified(release.tagName);
@@ -254,6 +264,7 @@ export function markReleaseNotified(tagName: string): void {
 export function resetUpdateStateForTests(): void {
   memoryCheckedAt = 0;
   memoryNotifiedTag = '';
+  snoozedTag = '';
   availableRelease = null;
   inFlightRelease = null;
   releaseListeners.clear();

@@ -1,13 +1,14 @@
 {
   "name": "audio-studio",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Audio Studio - 专业音频转换软件 (Windows / Web)",
   "license": "MIT",
   "packageManager": "pnpm@11.20.0",
   "scripts": {
     "dev": "pnpm --filter @audio-studio/web dev",
     "build:web": "pnpm --filter @audio-studio/web build",
+    "build:web:release": "pnpm --filter @audio-studio/web build --mode web-release",
     "build:desktop-ui": "pnpm --filter @audio-studio/web build --mode desktop",
     "build:desktop": "pnpm build:desktop-ui && pnpm --filter @audio-studio/desktop build",
     "test": "pnpm --filter @audio-studio/shared test && pnpm --filter @audio-studio/web test && pnpm test:release-notes",
@@ -21,7 +22,7 @@
     "test:coverage": "pnpm --filter @audio-studio/shared test:coverage && pnpm --filter @audio-studio/web test:coverage"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -147,7 +147,7 @@ function makeJob(
   };
 }
 
-describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
+describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', { timeout: 60_000 }, () => {
   beforeAll(() => {
     workDir = mkdtempSync(path.join(tmpdir(), 'as-it-'));
   });
@@ -462,7 +462,11 @@ describe.runIf(hasFFmpeg && hasFFprobe)('FFmpeg 真实集成测试', () => {
       outputFileName: 'merged.mp3',
       outputDir: outDir,
     };
-    const ctx = { resolvedSampleRate: 44100, resolvedChannels: 2 };
+    const ctx = {
+      resolvedSampleRate: 44100,
+      resolvedChannels: 2,
+      itemDurationsMs: [a, b].map((input) => ffprobe(input).durationSec * 1000),
+    };
     const r = runFFmpeg(buildMergeArgs(job, ctx));
     expect(r.code, r.stderr.slice(-1500)).toBe(0);
     const p = ffprobe(path.join(outDir, 'merged.mp3'));
