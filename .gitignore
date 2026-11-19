@@ -43,3 +43,6 @@ AudioStudio-*.zip
 *.key
 *.p12
 *.pfx
+
+# 嵌套的独立项目
+Codex 手机远程桥接/
