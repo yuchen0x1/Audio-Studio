@@ -65,7 +65,7 @@ jobs:
         run: pnpm test:coverage
 
       - name: 上传覆盖率报告
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage
           path: |
@@ -77,7 +77,7 @@ jobs:
         run: pnpm build:web:release
 
       - name: 上传 Web 产物
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: web-dist
           path: apps/web/dist
@@ -142,7 +142,7 @@ jobs:
           pnpm --filter @audio-studio/desktop exec tauri build --config $configPath
 
       - name: 上传安装包
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-bundles
           if-no-files-found: error
