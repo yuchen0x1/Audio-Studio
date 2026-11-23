@@ -36,6 +36,7 @@ export function BatchPage() {
   const startAll = useSession((s) => s.startAll);
   const clearCompleted = useSession((s) => s.clearCompleted);
   const clearFiles = useSession((s) => s.clearFiles);
+  const moveTask = useSession((s) => s.moveTask);
   const concurrency = useSettings((s) => s.concurrency);
   const updateSettings = useSettings((s) => s.update);
 
@@ -171,6 +172,17 @@ export function BatchPage() {
           {zh ? '批量参数（应用到全部文件）' : 'Batch parameters (apply to all)'}
         </div>
         <PresetPicker
+          currentParams={batchParams}
+          onApplyUserPreset={(params) => {
+            setBatchParams({ ...params, filenameTemplate: batchParams.filenameTemplate });
+            for (const file of files) {
+              useSession.getState().setFileParams(file.source.id, {
+                ...params,
+                filenameTemplate: file.params.filenameTemplate,
+              });
+            }
+            toast.success(zh ? '预设已应用到全部文件' : 'Preset applied to all files');
+          }}
           onSelect={(id) => {
             const next = paramsForPreset(id, batchParams);
             setBatchParams(next);
@@ -342,9 +354,23 @@ export function BatchPage() {
           </div>
         ) : (
           <div className="col" style={{ gap: 'var(--sp-2)' }}>
-            {queue.map((t) => (
-              <TaskRow key={t.id} task={t} />
-            ))}
+            {queue.map((t) => {
+              const globalIndex = tasks.findIndex((x) => x.id === t.id);
+              const canMove =
+                !['preparing', 'running'].includes(t.status) &&
+                tasks.filter((x) => !['preparing', 'running'].includes(x.status)).length > 1;
+              return (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  queuePosition={globalIndex + 1}
+                  onMoveUp={canMove && globalIndex > 0 ? () => moveTask(t.id, -1) : undefined}
+                  onMoveDown={
+                    canMove && globalIndex < tasks.length - 1 ? () => moveTask(t.id, 1) : undefined
+                  }
+                />
+              );
+            })}
           </div>
         )}
       </section>

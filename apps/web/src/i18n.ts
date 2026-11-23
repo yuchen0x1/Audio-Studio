@@ -386,6 +386,13 @@ const zh = {
   'aria.language': '切换语言',
   'aria.toggleTheme': '切换主题',
   'aria.editParams': '编辑参数',
+  'aria.presetName': '预设名称',
+  'aria.renamePreset': '重命名预设',
+  'aria.deletePreset': '删除预设',
+  'aria.exportPresets': '导出全部预设',
+  'aria.importPresets': '导入预设',
+  'aria.moveUp': '上移任务',
+  'aria.moveDown': '下移任务',
 
   // 引擎 / 状态栏
   'engine.initializing': '引擎初始化中…',
@@ -737,6 +744,13 @@ const en: Record<keyof Dict, string> = {
   'aria.language': 'Switch language',
   'aria.toggleTheme': 'Toggle theme',
   'aria.editParams': 'Edit parameters',
+  'aria.presetName': 'Preset name',
+  'aria.renamePreset': 'Rename preset',
+  'aria.deletePreset': 'Delete preset',
+  'aria.exportPresets': 'Export all presets',
+  'aria.importPresets': 'Import presets',
+  'aria.moveUp': 'Move task up',
+  'aria.moveDown': 'Move task down',
 
   'engine.initializing': 'Engine initializing…',
   'engine.ready': 'Engine ready',

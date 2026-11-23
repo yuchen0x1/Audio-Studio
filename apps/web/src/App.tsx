@@ -11,6 +11,7 @@ import { Shell } from './components/Shell';
 import { ToastHost } from './components/ToastHost';
 import { PlayerBar } from './components/PlayerBar';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { useShortcuts } from './hooks/useShortcuts';
 import { startUpdateMonitor } from './updates';
 import { HomePage } from './pages/HomePage';
 import { ConvertPage } from './pages/ConvertPage';
@@ -49,6 +50,8 @@ export default function App() {
   const ensureEngine = useSession((s) => s.ensureEngine);
   const loadHistory = useHistory((s) => s.load);
   const lang = useI18n((s) => s.lang);
+
+  useShortcuts();
 
   // 启动：主题、语言、历史、引擎预热
   useEffect(() => {

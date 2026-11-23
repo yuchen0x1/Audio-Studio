@@ -1,7 +1,7 @@
 {
   "name": "audio-studio",
   "private": true,
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Audio Studio - 专业音频转换软件 (Windows / Web)",
   "license": "MIT",
   "packageManager": "pnpm@11.20.0",
