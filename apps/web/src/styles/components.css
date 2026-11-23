@@ -803,6 +803,26 @@
   align-items: center;
   gap: var(--sp-3);
 }
+.task-row-index {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg-3);
+  font-size: var(--fs-xs);
+}
+.task-row-error {
+  display: grid;
+  gap: 3px;
+  margin-top: 3px;
+}
+.task-row-hint {
+  color: var(--fg-2);
+  line-height: 1.45;
+}
 .task-error-detail {
   margin-top: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
@@ -996,8 +1016,45 @@
 .preset-option {
   flex: 1 1 170px;
   height: auto;
+  min-height: 46px;
   white-space: normal;
   text-align: left;
+}
+.preset-user-list {
+  display: grid;
+  flex: 1 1 100%;
+  gap: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.preset-user-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.preset-user-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.preset-user-row > .preset-option {
+  flex-basis: auto;
+}
+.preset-rename {
+  flex: 1;
+  min-width: 100px;
+}
+.preset-save {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1 1 100%;
+  padding-top: var(--sp-2);
+}
+.preset-save > .input {
+  flex: 1 1 200px;
+  min-width: 120px;
 }
 .queue-filters {
   display: flex;
@@ -1025,5 +1082,8 @@
   }
   .task-row-actions {
     margin-left: auto;
+  }
+  .preset-save {
+    flex-wrap: wrap;
   }
 }

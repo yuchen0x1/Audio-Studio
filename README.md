@@ -154,7 +154,7 @@ py -3.14 apps/web/scripts/e2e-audio.py
 
 ## 最新更新
 
-**v0.2.3** 改善 PWA 离线打开和资源更新，Windows 设置使用完整文件替换。通过“稍后提醒”关闭后，可在设置中重新打开同一版本的更新详情。
+**v0.3.0** 新增可迁移的用户编码预设、批量队列排序与输出名预览、按错误类型给出下一步建议，并在桌面任务启动前检查磁盘空间。通过“稍后提醒”关闭后，可在设置中重新打开同一版本的更新详情。
 
 [当前稳定版与下载](https://github.com/yuchen0x1/Audio-Studio/releases/latest) · [完整更新日志](docs/releases/release-notes.md)
 

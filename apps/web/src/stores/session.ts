@@ -19,6 +19,7 @@ import {
   createTask,
   defaultParamsFor,
   deriveParams,
+  resolveUniqueFileName,
   transition,
   validateParams,
   EngineError,
@@ -29,7 +30,7 @@ import { getEngine, initEngine, engineInitialized, setEngineConcurrency } from '
 import { useSettings } from './settings';
 import { useHistory, type HistoryRecord } from './history';
 import { toast } from './toast';
-import { notify, deliverResult, isDesktop, baseName, dirOf } from '../platform';
+import { notify, deliverResult, isDesktop, baseName, dirOf, estimateFreeSpace } from '../platform';
 
 export interface SessionFile {
   source: AudioSource;
@@ -74,6 +75,7 @@ interface SessionState {
   cancelTask: (taskId: string) => void;
   retryTask: (taskId: string) => void;
   removeTask: (taskId: string) => void;
+  moveTask: (taskId: string, direction: -1 | 1) => void;
   clearCompleted: () => void;
   clearResults: () => void;
 }
@@ -365,6 +367,20 @@ export const useSession = create<SessionState>((set, get) => ({
     set((s) => ({ tasks: s.tasks.filter((t) => t.id !== taskId) }));
   },
 
+  moveTask: (taskId, direction) => {
+    set((s) => {
+      const index = s.tasks.findIndex((t) => t.id === taskId);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= s.tasks.length) return s;
+      const tasks = [...s.tasks];
+      const [moved] = tasks.splice(index, 1);
+      tasks.splice(target, 0, moved);
+      return { tasks };
+    });
+    // 顺序变化会改变“下一个启动的任务”，需要重新评估并发槽位
+    schedulePump();
+  },
+
   clearCompleted: () => {
     set((s) => ({
       tasks: s.tasks.filter((t) => !['completed', 'cancelled'].includes(t.status)),
@@ -386,6 +402,52 @@ function taskForFile(file: SessionFile): SessionTask {
     fileId: file.source.id,
     armed: true,
   };
+}
+
+/**
+ * 计算任务的输出文件名，并与队列中其他任务已占用的名称去重。
+ * 预览与真实执行共用此函数，保证界面显示的名字就是最终文件名。
+ */
+export function outputNameForTask(
+  task: SessionTask,
+  files: SessionFile[],
+  tasks: SessionTask[],
+): string {
+  const file = files.find((f) => f.source.id === task.fileId);
+  if (!file) return task.result?.fileName ?? '';
+  const format = getFormat(task.params.format);
+  if (!format) return task.result?.fileName ?? '';
+  const index = files.findIndex((f) => f.source.id === task.fileId) + 1;
+  const base = buildOutputFileName(task.params.filenameTemplate, {
+    sourceName: baseName(file.source.name).replace(/\.[^.]+$/, ''),
+    sourceFormat: file.probe?.format ?? undefined,
+    format,
+    index,
+    tags: file.probe?.tags,
+  });
+  const taken: string[] = [];
+  for (const other of tasks) {
+    if (other.id === task.id) continue;
+    if (!['queued', 'preparing', 'running', 'completed', 'paused'].includes(other.status)) continue;
+    const name = other.result?.fileName;
+    if (name) taken.push(name);
+    else if (other.targetFormat === task.params.format || !other.targetFormat) {
+      const otherFile = files.find((f) => f.source.id === other.fileId);
+      const otherFormat = getFormat(other.params.format);
+      if (!otherFile || !otherFormat) continue;
+      const otherIndex = files.findIndex((f) => f.source.id === other.fileId) + 1;
+      taken.push(
+        buildOutputFileName(other.params.filenameTemplate, {
+          sourceName: baseName(otherFile.source.name).replace(/\.[^.]+$/, ''),
+          sourceFormat: otherFile.probe?.format ?? undefined,
+          format: otherFormat,
+          index: otherIndex,
+          tags: otherFile.probe?.tags,
+        }),
+      );
+    }
+  }
+  return resolveUniqueFileName(base, taken);
 }
 
 /** 探测单个文件（真实信息来源：引擎） */
@@ -547,14 +609,29 @@ async function executeTask(taskId: string): Promise<void> {
   }));
 
   const settings = useSettings.getState();
-  const index = useSession.getState().files.findIndex((f) => f.source.id === task.fileId) + 1;
-  const outputFileName = buildOutputFileName(params.filenameTemplate, {
-    sourceName: baseName(file.source.name).replace(/\.[^.]+$/, ''),
-    sourceFormat: file.probe?.format ?? undefined,
-    format: getFormat(params.format)!,
-    index,
-    tags: file.probe?.tags,
-  });
+
+  // 桌面端落盘前先确认磁盘空间，避免长任务在最后一步失败。
+  if (isDesktop && settings.outputDirName && file.source.sizeBytes > 0) {
+    const needed = Math.max(file.source.sizeBytes * 2, 16 * 1024 * 1024);
+    const space = await estimateFreeSpace(settings.outputDirName, needed);
+    if (!space.ok) {
+      markFailed(
+        taskId,
+        makeEngineError('E_NO_SPACE_CHECK', undefined, {
+          message: `输出目录剩余空间不足（需要约 ${Math.ceil(needed / 1024 / 1024)} MB）`,
+        }),
+      );
+      return;
+    }
+  }
+
+  const latest = useSession.getState();
+  const outputFileName =
+    outputNameForTask(
+      latest.tasks.find((x) => x.id === taskId) ?? task,
+      latest.files,
+      latest.tasks,
+    ) || `${task.id}.${params.format}`;
 
   const engine = getEngine();
   const job = {

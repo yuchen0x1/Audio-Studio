@@ -103,23 +103,23 @@ v0.2.3 提供同目录临时写入、落盘和原子替换。旧 JSON 继续兼�
 - 参考/方案/效果：参考 MediaInfo 与 fre:ac 的编码器配置；设置页显示实际二进制路径、版本、能力和一键重新探测。
 - 文件/难度/优先级/验收：`commands.rs`、`NativeEngine.ts`、`SettingsPage.tsx`；中；P1；缺失二进制时给出安装/选择路径指引，能力表来自真实 `-encoders/-filters`。
 
-### EV-016 磁盘空间与临时目录预检 — `PLANNED`
+### EV-016 磁盘空间与临时目录预检 — `PARTIAL`
 
 - 模块/问题/依据：大文件输出可能因磁盘不足在长任务末尾失败；依据 Native 输出和无统一空间估算。
-- 参考/方案/效果：参考 Kdenlive 代理/渲染和 fre:ac 批处理；按输入、预计峰值和输出格式预留安全余量，执行前/过程中提示。
-- 文件/难度/优先级/验收：Rust disk-space command、shared estimator、UI；中；P1；低于阈值时任务不启动并显示所需/可用空间，空间释放后可重试。
+- 参考/方案/效果：参考 Kdenlive 代理/渲染和 fre:ac 批处理；桌面任务执行前按输入大小与 2 倍安全余量调用 `estimate_disk_space`，不足时不启动 FFmpeg。
+- 文件/难度/优先级/验收：`platform/index.ts`、`session.ts`、Rust disk-space command；中；P1；桌面前置检查已接入，Web 与运行中空间变化仍待实机矩阵。
 
-### EV-017 输出命名预览与冲突策略 — `PLANNED`
+### EV-017 输出命名预览与冲突策略 — `DONE`
 
 - 模块/问题/依据：当前模板在执行时生成，冲突重命名由后端决定，用户难以预览最终路径。
-- 参考/方案/效果：参考 LosslessCut/fre:ac；入队前展示样例、冲突数量和“覆盖/递增/跳过”策略，始终保护源文件。
-- 文件/难度/优先级/验收：`buildOutputFileName`、Batch UI、Rust output resolver；中；P1；同一批次可预览每个目标名，冲突策略与实际结果一致。
+- 参考/方案/效果：参考 LosslessCut/fre:ac；任务行展示预期输出名，shared 命名器按 Windows 不区分大小写规则生成 ` (1)`、` (2)` 递增名称，桌面后端仍以实际落盘路径为准。
+- 文件/难度/优先级/验收：`shared/naming.ts`、`session.ts`、`TaskRow.tsx`；中；P1；命名冲突单测与批量 UI 验收通过。
 
-### EV-018 任务失败分类、退避与可重试策略 — `PLANNED`
+### EV-018 任务失败分类、退避与可重试策略 — `PARTIAL`
 
 - 模块/问题/依据：当前重试按钮存在，但网络/权限/源损坏/资源不足未统一分类和退避。
-- 参考/方案/效果：参考 OBS safe-mode/诊断和 Kdenlive 长任务；错误码映射为 transient/permanent/user-action，指数退避且有最大次数。
-- 文件/难度/优先级/验收：`shared/errors.ts`、`session.ts`、Rust error mapping；中；P1；模拟权限、临时占用、源损坏分别得到不同提示和重试行为。
+- 参考/方案/效果：新增共享错误码指引，将权限、损坏、内存、空间、缺编码器等失败映射到切换引擎/修复输入/释放空间/重试等下一步；指数退避和最大重试次数仍待实现。
+- 文件/难度/优先级/验收：`shared/errors.ts`、`TaskRow.tsx`；中；P1；失败行展示分类指引并保留原始错误详情，已通过 UI 验收。
 
 ### EV-019 诊断包导出（隐私脱敏） — `PLANNED`
 
@@ -133,11 +133,11 @@ v0.2.3 提供同目录临时写入、落盘和原子替换。旧 JSON 继续兼�
 - 参考/方案/效果：参考 Tenacity/Audacity 的统一资源键；建立缺失键脚本和参数化文案，错误码统一从 i18n 取文案。
 - 文件/难度/优先级/验收：`i18n.ts`、各页面、`scripts/check-i18n.mjs`；中；P1；CI 在中英文键集合不一致时失败，语言切换不出现原始 key。
 
-### EV-021 全局键盘快捷键与焦点恢复 — `PLANNED`
+### EV-021 全局键盘快捷键与焦点恢复 — `PARTIAL`
 
 - 模块/问题/依据：Dropzone/Modal 已有局部可访问性，但队列控制和页面切换没有统一快捷键规范。
-- 参考/方案/效果：参考 Audacity/Tenacity；实现导入、开始/暂停、取消、重试、撤销、搜索聚焦，并避免输入框冲突。
-- 文件/难度/优先级/验收：新增 `hooks/useShortcuts.ts`、focus manager、测试；中；P1；键盘完成主要流程，焦点始终可见且屏幕阅读器有状态反馈。
+- 参考/方案/效果：参考 Audacity/Tenacity；实现 Alt+1…9 页面切换、Ctrl/Cmd+Enter 开始、Ctrl/Cmd+P 暂停、Ctrl/Cmd+Esc 取消和 `[`/`]` 页面导航，并跳过输入框/对话框。
+- 文件/难度/优先级/验收：`hooks/useShortcuts.ts`；中；P1；主要快捷键已接入，撤销/搜索聚焦和屏幕阅读器专项测试仍待补齐。
 
 ### EV-022 批量元数据表格与可撤销写入 — `PLANNED`
 
@@ -183,11 +183,11 @@ v0.2.3 提供同目录临时写入、落盘和原子替换。旧 JSON 继续兼�
 - 参考/方案/效果：定义纯数据 manifest、参数 schema、能力声明和沙箱执行边界；首批只允许内置 filter graph。
 - 文件/难度/优先级/验收：新增 `packages/plugin-api`、plugin registry；高；P2；第三方 manifest 可被校验、禁用、版本化，不能直接执行任意脚本。
 
-### EV-029 预设导入导出与分享链接 — `PLANNED`
+### EV-029 预设导入导出与分享链接 — `PARTIAL`
 
 - 模块/问题/依据：当前预设是内置按钮，用户无法保存/迁移自定义参数。
-- 参考/方案/效果：参考 LMMS/fre:ac；版本化 JSON 预设，过滤路径/脚本字段，支持导入、覆盖确认和只读分享文本。
-- 文件/难度/优先级/验收：`stores/presets.ts`、Preset UI、schema validator；中；P2；导出的预设在另一浏览器导入后产生相同参数，非法字段拒绝。
+- 参考/方案/效果：参考 LMMS/fre:ac；版本化 JSON 预设，过滤路径/脚本字段，支持保存、覆盖确认、重命名、删除、导入导出和非法字段拒绝；只读分享链接尚未实现。
+- 文件/难度/优先级/验收：`shared/userPresets.ts`、`stores/presets.ts`、`PresetPicker.tsx`；中；P2；117 项 shared 测试与浏览器保存验收通过。
 
 ### EV-030 可持久化项目/session 文件 — `PLANNED`
 

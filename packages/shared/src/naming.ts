@@ -130,3 +130,47 @@ const KNOWN_AUDIO_EXTS = new Set([
 export function isKnownAudioExt(ext: string): boolean {
   return KNOWN_AUDIO_EXTS.has(ext.replace(/^\./, '').toLowerCase());
 }
+
+/**
+ * 在给定已占用名称集合内生成不冲突的文件名。
+ *
+ * - 冲突时在扩展名前追加 ` (1)`、` (2)`…，与 Windows 资源管理器习惯一致；
+ * - 比较不区分大小写，避免 Windows/macOS 上出现仅大小写不同的同名文件；
+ * - 生成结果再次经过 `sanitizeFileName`，保证长度与非法字符约束。
+ */
+export function resolveUniqueFileName(
+  fileName: string,
+  taken: Iterable<string>,
+  maxAttempts = 999,
+): string {
+  const used = new Set(Array.from(taken, (name) => name.toLocaleLowerCase()));
+  const sanitized = sanitizeFileName(fileName) || 'output';
+  if (!used.has(sanitized.toLocaleLowerCase())) return sanitized;
+
+  const ext = extOfFile(sanitized);
+  const stem = ext ? sanitized.slice(0, sanitized.length - ext.length - 1) : sanitized;
+  for (let i = 1; i <= maxAttempts; i += 1) {
+    const candidate = sanitizeFileName(`${stem} (${i})${ext ? `.${ext}` : ''}`);
+    if (!used.has(candidate.toLocaleLowerCase())) return candidate;
+  }
+  // 极端情况下追加时间戳，仍保持合法文件名
+  return sanitizeFileName(`${stem}_${Date.now().toString(36)}${ext ? `.${ext}` : ''}`);
+}
+
+function extOfFile(name: string): string {
+  const m = /\.([a-z0-9]+)$/i.exec(name);
+  return m ? m[1] : '';
+}
+
+/**
+ * 一次为一批输出名去重：顺序即优先级，先到先得。
+ * 用于批量队列预览与执行前命名，保证界面显示与实际写入一致。
+ */
+export function resolveUniqueFileNames(fileNames: string[]): string[] {
+  const taken: string[] = [];
+  return fileNames.map((name) => {
+    const unique = resolveUniqueFileName(name, taken);
+    taken.push(unique);
+    return unique;
+  });
+}

@@ -3,9 +3,9 @@
  * 进度只渲染 store 中的 progress.ratio（由引擎回调 applyProgress 写入，单调不减）。
  */
 import { useState } from 'react';
-import type { TaskStatus } from '@audio-studio/shared';
+import { ERROR_GUIDANCE, type EngineErrorCode, type TaskStatus } from '@audio-studio/shared';
 import type { SessionTask } from '../stores/session';
-import { useSession } from '../stores/session';
+import { outputNameForTask, useSession } from '../stores/session';
 import { useI18n, useT } from '../i18n';
 import { fmtDuration, fmtSize, fmtElapsed } from '../utils/format';
 import { deliverResult, revealOutput, isDesktop } from '../platform';
@@ -19,6 +19,8 @@ import {
   IconFolder,
   IconChevronDown,
   IconChevronRight,
+  IconArrowUp,
+  IconArrowDown,
 } from './Icons';
 
 const STATUS_CLASS: Record<TaskStatus, string> = {
@@ -35,18 +37,32 @@ export interface TaskRowProps {
   task: SessionTask;
   /** 显示源文件名 → 目标 */
   showTarget?: boolean;
+  /** 队列中的位置（1 起）；提供时显示序号 */
+  queuePosition?: number;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
-export function TaskRow({ task, showTarget = true }: TaskRowProps) {
+export function TaskRow({
+  task,
+  showTarget = true,
+  queuePosition,
+  onMoveUp,
+  onMoveDown,
+}: TaskRowProps) {
   const lang = useI18n((s) => s.lang);
   const zh = lang !== 'en';
   const t = useT();
   const [expanded, setExpanded] = useState(false);
 
   const { pauseTask, resumeTask, cancelTask, retryTask, removeTask } = useSession.getState();
+  const files = useSession((s) => s.files);
+  const tasks = useSession((s) => s.tasks);
 
   const active = task.status === 'running' || task.status === 'preparing';
   const pct = Math.round(task.progress.ratio * 100);
+  const plannedName = task.result?.fileName ?? outputNameForTask(task, files, tasks);
+  const guidance = task.error ? ERROR_GUIDANCE[task.error.code as EngineErrorCode] : undefined;
 
   const download = async () => {
     if (!task.result) return;
@@ -65,6 +81,11 @@ export function TaskRow({ task, showTarget = true }: TaskRowProps) {
   return (
     <div className="task-row">
       <div className="task-row-main">
+        {queuePosition !== undefined && (
+          <span className="task-row-index mono" aria-hidden="true">
+            {queuePosition}
+          </span>
+        )}
         {/* 状态徽章 */}
         <span
           className={`badge ${STATUS_CLASS[task.status]}`}
@@ -104,12 +125,22 @@ export function TaskRow({ task, showTarget = true }: TaskRowProps) {
             </div>
           )}
           {task.status === 'failed' && task.error && (
-            <div
-              className="xs"
-              style={{ color: 'var(--danger)' }}
-              title={task.error.detail ?? task.error.message}
-            >
-              {task.error.code}: {task.error.message}
+            <div className="task-row-error">
+              <div
+                className="xs"
+                style={{ color: 'var(--danger)' }}
+                title={task.error.detail ?? task.error.message}
+              >
+                {task.error.code}: {task.error.message}
+              </div>
+              {guidance && (
+                <div className="xs task-row-hint">{zh ? guidance.hint.zh : guidance.hint.en}</div>
+              )}
+            </div>
+          )}
+          {task.status !== 'failed' && plannedName && (
+            <div className="xs muted truncate" title={plannedName}>
+              {zh ? '输出' : 'Output'}: {plannedName}
             </div>
           )}
         </div>
@@ -149,6 +180,28 @@ export function TaskRow({ task, showTarget = true }: TaskRowProps) {
 
         {/* 操作 */}
         <div className="row task-row-actions" style={{ gap: 4, flex: 'none' }}>
+          {(onMoveUp || onMoveDown) && (
+            <>
+              <button
+                className="btn btn-ghost btn-icon btn-sm"
+                title={zh ? '上移' : 'Move up'}
+                aria-label={t('aria.moveUp')}
+                disabled={!onMoveUp}
+                onClick={onMoveUp}
+              >
+                <IconArrowUp size={13} />
+              </button>
+              <button
+                className="btn btn-ghost btn-icon btn-sm"
+                title={zh ? '下移' : 'Move down'}
+                aria-label={t('aria.moveDown')}
+                disabled={!onMoveDown}
+                onClick={onMoveDown}
+              >
+                <IconArrowDown size={13} />
+              </button>
+            </>
+          )}
           {(task.status === 'queued' || task.status === 'preparing') && (
             <button
               className="btn btn-ghost btn-icon btn-sm"

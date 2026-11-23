@@ -368,6 +368,13 @@ function FileDetail({ file }: { file: SessionFile }) {
             : 'Edits apply when next queued. Existing jobs keep their queued settings.'}
         </p>
         <PresetPicker
+          currentParams={file.params}
+          onApplyUserPreset={(params) =>
+            setFileParams(file.source.id, {
+              ...params,
+              filenameTemplate: file.params.filenameTemplate,
+            })
+          }
           onSelect={(id) =>
             setFileParams(file.source.id, paramsForPreset(id, file.params, file.probe))
           }
